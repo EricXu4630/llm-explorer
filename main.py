@@ -34,6 +34,11 @@ async def index():
     return HTMLResponse(Path("static/index.html").read_text(encoding="utf-8"))
 
 
+@app.get("/about")
+async def about():
+    return HTMLResponse(Path("static/about.html").read_text(encoding="utf-8"))
+
+
 @app.get("/api/info")
 async def info():
     """Return system info: memory paths, session state, file structure."""
