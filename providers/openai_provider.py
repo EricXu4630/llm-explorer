@@ -279,30 +279,52 @@ class OpenAIProvider:
                         "message": f"OpenAI container {cid[:20]}... saved — /mnt/data persists",
                     })
 
-            # Extract text and handle special output types from final response
-            if not full_text and hasattr(final, "output"):
+            # Walk the final output array to emit tool events and extract text.
+            # OpenAI often handles tools (web_search, code_interpreter) transparently
+            # without streaming events — this is the reliable place to surface them.
+            if hasattr(final, "output"):
                 for item in (final.output or []):
                     itype = getattr(item, "type", "")
 
                     if itype == "message":
-                        for part in getattr(item, "content", []):
-                            text = getattr(part, "text", "")
-                            if text:
-                                full_text += text
-                                await ws.send_json({"type": "token", "content": text})
+                        if not full_text:
+                            for part in getattr(item, "content", []):
+                                text = getattr(part, "text", "")
+                                if text:
+                                    full_text += text
+                                    await ws.send_json({"type": "token", "content": text})
+
+                    elif itype == "web_search_call":
+                        # Web search that may not have streamed events
+                        query = getattr(item, "query", "") or ""
+                        await ws.send_json({
+                            "type": "tool_call",
+                            "tool": "web_search",
+                            "input": {"query": query} if query else {},
+                        })
+                        await ws.send_json({"type": "tool_result", "tool": "web_search",
+                                            "output": getattr(item, "status", "completed")})
+
+                    elif itype in ("code_interpreter_call", "shell_call"):
+                        await ws.send_json({
+                            "type": "tool_call", "tool": itype.replace("_call", ""),
+                            "input": {"code": getattr(item, "code", "") or ""},
+                        })
+
+                    elif itype == "mcp_call":
+                        await ws.send_json({
+                            "type": "tool_call", "tool": f"mcp:{getattr(item,'name','')}",
+                            "input": _safe_dict(getattr(item, "arguments", {})),
+                        })
 
                     elif itype == "image_generation_call":
-                        # Image is base64 in item.result — send as a tool_result event
                         b64 = getattr(item, "result", "") or ""
                         await ws.send_json({
-                            "type": "tool_result",
-                            "tool": "image_generation",
-                            "output": f"data:image/png;base64,{b64[:40]}... ({len(b64)} bytes)",
+                            "type": "tool_result", "tool": "image_generation",
+                            "output": f"Image generated ({len(b64)} bytes base64)",
                         })
-                        # Put the image in the chat as an <img> tag via a special token
                         if b64:
-                            img_html = f'<img src="data:image/png;base64,{b64}" style="max-width:100%;border-radius:4px;margin-top:8px;" alt="Generated image"/>'
-                            full_text = img_html
+                            full_text = f'<img src="data:image/png;base64,{b64}" style="max-width:100%;border-radius:4px;margin-top:8px;" alt="Generated image"/>'
                             await ws.send_json({"type": "image", "data": b64})
 
             await ws.send_json({"type": "done", "message": full_text or "(image generated — see above)"})

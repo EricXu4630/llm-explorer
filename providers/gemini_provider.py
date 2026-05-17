@@ -248,6 +248,19 @@ class GeminiProvider:
 
             response = await asyncio.to_thread(_sync_call)
             resp_dict = _serialize_response(response)
+
+            # Emit Google Search queries from grounding metadata before api_response
+            # so they appear in the chat before the answer bubble
+            for candidate in (response.candidates or []):
+                grounding = getattr(candidate, "grounding_metadata", None)
+                if grounding:
+                    for q in (getattr(grounding, "web_search_queries", None) or []):
+                        await ws.send_json({
+                            "type": "tool_call",
+                            "tool": "google_search",
+                            "input": {"query": q},
+                        })
+
             await ws.send_json({"type": "api_response", "payload": resp_dict})
 
             if not response.candidates:

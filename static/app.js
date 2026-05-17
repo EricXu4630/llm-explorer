@@ -388,9 +388,14 @@ function handleEvent(evt) {
       }
       break;
     case "tool_call":
+      // Tool call with early detection (input may be empty {}; final input comes via "tool" event)
       appendToolEvent("call", evt.tool, evt.input);
       addInspEntry("tool", { tool: evt.tool, input: evt.input }, `Tool: ${evt.tool}`);
       scrollBottom();
+      break;
+    case "tool":
+      // Complete tool input (after streaming ends) — update inspector only, not chat card
+      addInspEntry("tool", { tool: evt.tool, input: evt.input }, `Tool: ${evt.tool}`);
       break;
     case "tool_result":
       appendToolEvent("result", evt.tool, evt.output);

@@ -407,12 +407,18 @@ class AnthropicProvider:
                                 full_text += delta.text
 
                         elif etype == "content_block_start":
-                            # tool_use input is {} at this point; full input arrives after stream.
+                            # Emit tool call with tool name early (input arrives via deltas).
+                            # Shows in chat immediately so user sees what's happening.
                             block = getattr(event, "content_block", None)
                             if block:
                                 btype = str(getattr(block, "type", "") or "")
+                                name = getattr(block, "name", btype)
                                 if btype in ("tool_use", "server_tool_use", "mcp_tool_use"):
-                                    pass  # input is empty here; full emit happens after get_final_message()
+                                    await ws.send_json({
+                                        "type": "tool_call",
+                                        "tool": name,
+                                        "input": {},  # input fills in below after stream
+                                    })
                                 elif btype == "mcp_tool_result":
                                     await ws.send_json({
                                         "type": "tool_result",
@@ -422,26 +428,28 @@ class AnthropicProvider:
 
                     final = await stream.get_final_message()
 
-                await ws.send_json({"type": "api_response", "payload": _safe_dict(final)})
-
-                # Re-emit tool calls with complete inputs from final.content
+                # Emit tool calls with complete inputs BEFORE api_response so they
+                # appear in the inspector alongside the right entry.
                 memory_tool_calls = []
                 for block in (final.content or []):
                     btype = str(getattr(block, "type", "") or "")
                     if btype == "tool_use":
                         inp = _safe_dict(getattr(block, "input", {})) or {}
                         memory_tool_calls.append(block)
+                        # Update inspector with complete input (chat card already created above)
                         await ws.send_json({
-                            "type": "tool_call",
+                            "type": "tool",
                             "tool": getattr(block, "name", "tool"),
                             "input": inp,
                         })
                     elif btype in ("server_tool_use", "mcp_tool_use"):
                         await ws.send_json({
-                            "type": "tool_call",
+                            "type": "tool",
                             "tool": getattr(block, "name", btype),
                             "input": _safe_dict(getattr(block, "input", {})),
                         })
+
+                await ws.send_json({"type": "api_response", "payload": _safe_dict(final)})
 
                 stop_reason = getattr(final, "stop_reason", "end_turn")
 
