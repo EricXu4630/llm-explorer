@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()  # local .env for development; Railway uses real env vars
 
 from providers.anthropic_provider import AnthropicProvider
 from providers.openai_provider import OpenAIProvider
