@@ -3,537 +3,257 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>LLM Explorer — How It Works</title>
+<title>LLM Explorer — About</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0a0a0b;--surface:#111113;--panel:#16161a;
   --border:#1e1e26;--border2:#2a2a36;
-  --text:#c4c4cc;--text-dim:#5a5a6e;--text-bright:#e8e8f0;
+  --text:#c4c4cc;--dim:#5a5a6e;--bright:#e8e8f0;
   --accent:#7c6af7;--accent-bg:rgba(124,106,247,.08);--accent-border:rgba(124,106,247,.3);
-  --green:#34d399;--green-bg:rgba(52,211,153,.06);
-  --yellow:#fbbf24;--yellow-bg:rgba(251,191,36,.06);
-  --red:#f87171;
-  --mono:'JetBrains Mono',monospace;
-  --sans:'Syne',sans-serif;
+  --green:#34d399;--yellow:#fbbf24;--red:#f87171;
+  --mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;
+  --r:4px;
 }
-html,body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.7}
+html,body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px;line-height:1.6}
 
-/* ─ layout ─ */
-.page{max-width:960px;margin:0 auto;padding:48px 32px 80px}
+/* nav */
+.topbar{height:36px;display:flex;align-items:center;gap:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px}
+.topbar-logo{font-family:var(--sans);font-weight:800;font-size:13px;background:linear-gradient(90deg,var(--accent),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-right:16px}
+.topbar-links{display:flex;gap:2px;margin-left:auto}
+.topbar-link{padding:4px 10px;border-radius:var(--r);font-size:11px;color:var(--dim);text-decoration:none;transition:all .12s}
+.topbar-link:hover{color:var(--text);background:var(--panel)}
+.topbar-link.active{color:var(--accent);background:var(--accent-bg)}
 
-/* ─ nav ─ */
-.topnav{
-  display:flex;align-items:center;gap:16px;
-  padding:12px 32px;border-bottom:1px solid var(--border);
-  background:var(--surface);position:sticky;top:0;z-index:10;
-}
-.topnav a{color:var(--accent);text-decoration:none;font-size:12px}
-.topnav a:hover{text-decoration:underline}
-.topnav .logo{font-family:var(--sans);font-weight:800;font-size:14px;color:var(--text-bright);margin-right:auto}
+/* layout */
+.page{max-width:900px;margin:0 auto;padding:32px 28px 60px;display:flex;flex-direction:column;gap:40px}
 
-/* ─ typography ─ */
-h1{font-family:var(--sans);font-size:32px;font-weight:800;color:var(--text-bright);letter-spacing:-.5px;margin-bottom:8px}
-h2{font-family:var(--sans);font-size:18px;font-weight:700;color:var(--text-bright);margin:48px 0 16px;
-   padding-bottom:8px;border-bottom:1px solid var(--border)}
-h3{font-size:13px;font-weight:600;color:var(--text-bright);letter-spacing:.3px;margin:24px 0 10px}
-p{margin-bottom:14px;color:var(--text)}
-.lead{font-size:14px;color:var(--text-dim);max-width:680px;margin-bottom:32px}
+/* section */
+h2{font-family:var(--sans);font-size:15px;font-weight:700;color:var(--bright);margin-bottom:12px;
+   padding-bottom:6px;border-bottom:1px solid var(--border)}
 
-/* ─ cards ─ */
-.card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:20px;margin-bottom:12px}
-.card-title{font-weight:600;color:var(--text-bright);margin-bottom:8px;font-size:13px}
-.card-body{color:var(--text-dim);font-size:12px}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:6px 10px;color:var(--dim);font-size:9px;letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--border2)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+td:first-child{color:var(--bright);white-space:nowrap;width:160px}
+.g{color:var(--green)}
+.y{color:var(--yellow)}
+.d{color:var(--dim);opacity:.5}
+small{font-size:9px;color:var(--dim);display:block;margin-top:2px}
 
-/* ─ two-col split ─ */
-.split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
-@media(max-width:640px){.split{grid-template-columns:1fr}}
+/* badges */
+.tag{display:inline-block;padding:1px 6px;border-radius:2px;font-size:9px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.tag-api{background:rgba(52,211,153,.08);color:var(--green);border:1px solid rgba(52,211,153,.2)}
+.tag-harness{background:rgba(251,191,36,.08);color:var(--yellow);border:1px solid rgba(251,191,36,.2)}
+.tag-no{background:rgba(248,113,113,.07);color:var(--red);border:1px solid rgba(248,113,113,.15);opacity:.7}
 
-/* ─ table ─ */
-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:11px}
-th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border2);
-   color:var(--text-dim);font-size:9px;letter-spacing:.8px;text-transform:uppercase;font-weight:500}
-td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-dim);vertical-align:top}
-td:first-child{color:var(--text);white-space:nowrap}
-.c-yes{color:var(--green)}
-.c-harness{color:var(--yellow)}
-.c-no{opacity:.45}
-small{font-size:9px;color:var(--text-dim);display:block;margin-top:2px}
+/* code */
+code{background:rgba(124,106,247,.1);color:var(--accent);padding:1px 5px;border-radius:3px;font-size:10px}
+pre{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:12px;font-size:10px;color:var(--dim);overflow-x:auto;margin-top:8px}
 
-/* ─ code ─ */
-pre,code{font-family:var(--mono)}
-pre{background:var(--bg);border:1px solid var(--border);border-radius:4px;
-    padding:14px 16px;overflow-x:auto;font-size:11px;color:var(--text-dim);margin-bottom:14px}
-code{background:rgba(124,106,247,.1);color:var(--accent);padding:1px 5px;border-radius:3px;font-size:11px}
+/* 2-col */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:620px){.two{grid-template-columns:1fr}}
+.box{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.box-title{font-size:11px;font-weight:600;color:var(--bright);margin-bottom:6px}
+.box-body{font-size:10px;color:var(--dim);line-height:1.7}
 
-/* ─ badges ─ */
-.badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
-.badge-api{background:var(--green-bg);color:var(--green);border:1px solid rgba(52,211,153,.2)}
-.badge-harness{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(251,191,36,.2)}
-.badge-none{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.2)}
-.badge-beta{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-border)}
-
-/* ─ flow diagram ─ */
-.flow{display:flex;align-items:stretch;gap:0;margin:20px 0 28px;overflow-x:auto}
-.flow-box{
-  flex:1;min-width:160px;padding:14px 16px;border:1px solid var(--border);
-  background:var(--panel);
-}
-.flow-box:first-child{border-radius:6px 0 0 6px}
-.flow-box:last-child{border-radius:0 6px 6px 0}
-.flow-arrow{
-  display:flex;align-items:center;padding:0 2px;color:var(--text-dim);
-  font-size:16px;flex-shrink:0;
-}
-.flow-label{font-size:9px;color:var(--text-dim);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px}
-.flow-content{font-size:11px;color:var(--text)}
-.flow-box.highlight{border-color:var(--accent);background:var(--accent-bg)}
-.flow-box.highlight .flow-content{color:var(--text-bright)}
-
-/* ─ file tree ─ */
-.tree{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:14px 16px;font-size:11px;margin-bottom:14px}
-.tree-line{line-height:1.8}
-.tree-dir{color:var(--accent)}
-.tree-file{color:var(--text)}
-.tree-comment{color:var(--text-dim)}
-
-/* ─ pill list ─ */
-.pill-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
-.pill{padding:4px 10px;border-radius:20px;font-size:10px;border:1px solid var(--border);color:var(--text-dim)}
-.pill.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
-
-/* ─ note box ─ */
-.note{border-left:3px solid var(--accent);padding:10px 14px;background:var(--accent-bg);
-      border-radius:0 4px 4px 0;margin-bottom:16px;font-size:12px;color:var(--text-dim)}
-.note strong{color:var(--text-bright)}
-
-/* ─ section anchor ─ */
-.anchor{color:var(--text-dim);text-decoration:none;font-size:11px;margin-left:8px;opacity:0;transition:opacity .15s}
-h2:hover .anchor{opacity:1}
+/* file tree */
+.tree{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:12px;font-size:10px;line-height:1.9}
+.td{color:var(--accent)}
+.tc{color:var(--dim)}
 </style>
 </head>
 <body>
 
-<nav class="topnav">
-  <span class="logo">⚡ LLM Explorer</span>
-  <a href="/">← Back to Chat</a>
-  <a href="https://github.com/EricXu4630/llm-explorer" target="_blank">GitHub</a>
+<nav class="topbar">
+  <span class="topbar-logo">⚡ LLM Explorer</span>
+  <div class="topbar-links">
+    <a href="/" class="topbar-link">Chat</a>
+    <a href="/about" class="topbar-link active">About</a>
+    <a href="https://github.com/EricXu4630/llm-explorer" target="_blank" class="topbar-link">GitHub</a>
+  </div>
 </nav>
 
 <div class="page">
 
-  <h1>How LLM Explorer Works</h1>
-  <p class="lead">
-    LLM Explorer is a deliberately thin harness around three LLM provider APIs.
-    This page documents exactly what the harness does, what each API handles natively,
-    how memory and Skills work, and where every file lives.
-  </p>
+  <!-- ── HARNESS vs API ── -->
+  <section>
+    <h2>What the harness does vs. what the API does</h2>
+    <table>
+      <thead><tr><th>Task</th><th>Where it runs</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>Web search</td><td><span class="tag tag-api">API</span></td><td class="d">Provider executes on their servers. Harness passes tool config only.</td></tr>
+        <tr><td>Code execution</td><td><span class="tag tag-api">API</span></td><td class="d">Runs in provider's sandboxed container. Harness never sees the code run.</td></tr>
+        <tr><td>URL fetch / maps</td><td><span class="tag tag-api">API</span></td><td class="d">Provider fetches and filters. Harness receives only the final answer.</td></tr>
+        <tr><td>Image generation</td><td><span class="tag tag-api">API</span></td><td class="d">OpenAI only. Harness receives base64 image and renders it.</td></tr>
+        <tr><td>MCP tool calls</td><td><span class="tag tag-api">API</span></td><td class="d">Anthropic + OpenAI call your MCP server directly. Harness passes the URL.</td></tr>
+        <tr><td>Skills (SKILL.md)</td><td><span class="tag tag-api">API</span></td><td class="d">Anthropic + OpenAI: harness uploads zip once, API handles progressive disclosure. Gemini: harness injects full content into system prompt.</td></tr>
+        <tr><td>Memory writes</td><td><span class="tag tag-harness">harness</span></td><td class="d">Model calls <code>memory_20250818</code> tool → harness writes to <code>memories/</code> on disk.</td></tr>
+        <tr><td>Bash commands</td><td><span class="tag tag-harness">harness</span></td><td class="d">Gemini bash tool + Anthropic <code>bash_20250124</code> → harness runs command in <code>workspace/</code>.</td></tr>
+        <tr><td>Conversation history</td><td><span class="tag tag-harness">harness</span></td><td class="d">Browser holds the message array and sends it on every call. The API has no memory of prior turns.</td></tr>
+        <tr><td>Container ID reuse</td><td><span class="tag tag-harness">harness</span></td><td class="d">After code execution, harness saves <code>container_id</code> to <code>sessions/</code> and passes it next call so files persist (30-day window).</td></tr>
+      </tbody>
+    </table>
+  </section>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <h2>Architecture <a class="anchor" href="#architecture" id="architecture">#</a></h2>
+  <!-- ── CAPABILITIES ── -->
+  <section>
+    <h2>Tool capabilities by provider</h2>
+    <table>
+      <thead><tr><th>Tool</th><th>Anthropic</th><th>OpenAI</th><th>Gemini</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Web search</td>
+          <td class="g">✅ <code>web_search_20260209</code></td>
+          <td class="g">✅ <code>web_search_preview</code></td>
+          <td class="g">✅ Google Search grounding</td>
+        </tr>
+        <tr>
+          <td>Code / bash</td>
+          <td class="g">✅ bash+Python<small>server-side, 30d container</small></td>
+          <td class="g">✅ Python + bash<small>code_interpreter + shell</small></td>
+          <td class="y">⚠️ Python only, stateless<small>+ harness bash in workspace/</small></td>
+        </tr>
+        <tr>
+          <td>URL fetch</td>
+          <td class="g">✅ <code>web_fetch_20260209</code></td>
+          <td class="d">❌</td>
+          <td class="g">✅ <code>url_context</code></td>
+        </tr>
+        <tr>
+          <td>Image generation</td>
+          <td class="d">❌</td>
+          <td class="g">✅ <code>image_generation</code><small>uses gpt-image-2</small></td>
+          <td class="d">❌</td>
+        </tr>
+        <tr>
+          <td>Maps</td>
+          <td class="d">❌</td>
+          <td class="d">❌</td>
+          <td class="g">✅ <code>google_maps</code></td>
+        </tr>
+        <tr>
+          <td>MCP connector</td>
+          <td class="g">✅ native API<small>needs public HTTPS</small></td>
+          <td class="g">✅ native API<small>needs public HTTPS</small></td>
+          <td class="d">❌ no native connector</td>
+        </tr>
+        <tr>
+          <td>Skills (SKILL.md)</td>
+          <td class="g">✅ native Skills API<small>progressive disclosure</small></td>
+          <td class="g">✅ shell.environment.skills</td>
+          <td class="y">⚠️ system prompt injection</td>
+        </tr>
+        <tr>
+          <td>Advisor tool</td>
+          <td class="g">✅ <code>advisor_20260301</code> beta<small>Sonnet calls Opus mid-task</small></td>
+          <td class="d">❌</td>
+          <td class="d">❌</td>
+        </tr>
+        <tr>
+          <td>Memory (/memories/)</td>
+          <td class="y">⚠️ <code>memory_20250818</code><small>harness writes to disk</small></td>
+          <td class="d">❌</td>
+          <td class="d">❌</td>
+        </tr>
+        <tr>
+          <td>Context window</td>
+          <td>1M (Opus/Sonnet)<small>200K Haiku</small></td>
+          <td>1M (gpt-5.5)<small>128K others</small></td>
+          <td class="g">1M+ all models</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
 
-  <div class="flow">
-    <div class="flow-box">
-      <div class="flow-label">Your Browser</div>
-      <div class="flow-content">Conversation history<br/>Tool toggles<br/>MCP config<br/>Skills list</div>
-    </div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box highlight">
-      <div class="flow-label">Harness (this server)</div>
-      <div class="flow-content">Routes to provider<br/>Executes 3 client tools<br/>Manages session/files<br/>Streams events to UI</div>
-    </div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box">
-      <div class="flow-label">LLM Provider API</div>
-      <div class="flow-content">Runs web search<br/>Executes code<br/>Calls MCP servers<br/>Progressive disclosure</div>
-    </div>
-  </div>
-
-  <p>The harness does almost nothing. Its entire job is:</p>
-  <ol style="margin:0 0 16px 20px;color:var(--text-dim);font-size:12px;line-height:2">
-    <li>Pass the conversation + tools config to the provider's API</li>
-    <li>Stream events back to the browser</li>
-    <li>Execute <strong style="color:var(--yellow)">three client-side tools</strong> (memory, bash, bash_tool)</li>
-    <li>Save container IDs and skill IDs to disk for reuse</li>
-  </ol>
-
-  <!-- ══════════════════════════════════════════════════════ -->
-  <h2>What the Harness Does <span class="badge badge-harness">client-side</span> <a class="anchor" href="#harness" id="harness">#</a></h2>
-
-  <div class="split">
-    <div class="card">
-      <div class="card-title">🧠 memory_20250818 (Anthropic)</div>
-      <div class="card-body">
-        The model calls this tool with filesystem commands (<code>view</code>, <code>create</code>,
-        <code>str_replace</code>, <code>insert</code>, <code>delete</code>, <code>rename</code>).
-        The harness maps <code>/memories/</code> → <code>memories/</code> on your disk and executes the operation.
-        No API call is made. This is how the model writes durable memory.
+  <!-- ── AGENTS.MD + MEMORY ── -->
+  <section>
+    <h2>AGENTS.md and memory</h2>
+    <div class="two">
+      <div class="box">
+        <div class="box-title">📄 AGENTS.md — Instructions</div>
+        <div class="box-body">
+          <code>llm-explorer/AGENTS.md</code><br/><br/>
+          Loaded as the system prompt on every call. Defines role, tools, behavior rules.<br/><br/>
+          <strong style="color:var(--bright)">Never written by the model.</strong> You edit this manually.
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-title">🧠 memories/AGENTS.md — Memory</div>
+        <div class="box-body">
+          <code>llm-explorer/memories/AGENTS.md</code><br/><br/>
+          Written by the model via <code>memory_20250818</code> (Anthropic only). Model reads it at session start to restore context.<br/><br/>
+          Contains: learned preferences, facts, recurring rules.
+        </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">🖥️ bash (Gemini) + bash_20250124 (Anthropic)</div>
-      <div class="card-body">
-        The model sends a <code>command</code> string. The harness runs it in <code>workspace/</code>
-        via Python subprocess (Windows) or real bash (Unix). Results are returned to the model.
-        On Unix, full bash. On Windows, a Python emulator handles common commands
-        (<code>ls</code>, <code>cat</code>, <code>echo</code>, <code>grep</code>, etc.)
-      </div>
+    <p style="margin-top:10px;font-size:10px;color:var(--dim)">
+      Cross-session flow: model writes to <code>/memories/</code> → harness saves to disk → next session, model runs <code>memory view /memories</code> → reads it back.
+    </p>
+  </section>
+
+  <!-- ── SKILLS ── -->
+  <section>
+    <h2>Skills (SKILL.md standard)</h2>
+    <table>
+      <thead><tr><th>Step</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>First load</td><td class="d">Harness zips SKILL.md, uploads to provider Skills API, caches the <code>skill_id</code> locally.</td></tr>
+        <tr><td>Every call after</td><td class="d">Only the <code>skill_id</code> is sent. SKILL.md content never appears in requests again.</td></tr>
+        <tr><td>Progressive disclosure<br/><small>(Anthropic + OpenAI)</small></td><td class="d">Level 1: ~100 tokens (name + description, every call). Level 2: full SKILL.md, only when model triggers skill. Level 3: bundled resources (scripts, refs), on demand.</td></tr>
+        <tr><td>Gemini</td><td class="d">No native Skills API. Full SKILL.md content injected into system prompt every call.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── FILE STRUCTURE ── -->
+  <section>
+    <h2>Local file structure</h2>
+    <div class="tree">
+      <div><span class="td">memories/</span>  <span class="tc">← model's writable memory (permanent)</span></div>
+      <div>&nbsp;&nbsp;<span class="td">AGENTS.md</span>  <span class="tc">← learned preferences, written by model</span></div>
+      <div>&nbsp;&nbsp;<span class="tc">*.md, *.json, ...</span>  <span class="tc">← whatever model creates</span></div>
+      <div><span class="td">workspace/</span>  <span class="tc">← bash sandbox for Gemini (permanent)</span></div>
+      <div><span class="td">sessions/default.json</span>  <span class="tc">← container IDs (Anthropic: 30d, OpenAI: configurable)</span></div>
+      <div><span class="td">skill_ids_cache.json</span>  <span class="tc">← Anthropic skill_id → content hash map</span></div>
+      <div><span class="td">openai_skill_ids.json</span>  <span class="tc">← OpenAI skill_id cache</span></div>
+      <div><span class="td">AGENTS.md</span>  <span class="tc">← static instructions (system prompt, you edit this)</span></div>
+      <div><span class="td">.env</span>  <span class="tc">← API keys (never committed)</span></div>
     </div>
-  </div>
+    <p style="margin-top:10px;font-size:10px;color:var(--dim)">
+      On Railway/Render: <code>memories/</code>, <code>workspace/</code>, and <code>sessions/</code> reset on redeploy (ephemeral filesystem). Add a Postgres DB for persistence.
+    </p>
+  </section>
 
-  <div class="note">
-    <strong>Everything else is handled by the API.</strong> Web search, code execution, URL fetching,
-    image generation, MCP calls, computer use — all of it runs on the provider's infrastructure.
-    The harness never makes any of those calls.
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════ -->
-  <h2>What the API Does <span class="badge badge-api">server-side</span> <a class="anchor" href="#api" id="api">#</a></h2>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Tool / Feature</th>
-        <th>Anthropic</th>
-        <th>OpenAI</th>
-        <th>Gemini</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Web Search<small>Real-time web results</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>web_search_20260209</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>web_search_preview</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>Google Search grounding</small></td>
-      </tr>
-      <tr>
-        <td>Code Execution<small>Run Python / bash</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>code_execution_20250825<br/>bash + Python, 30d container</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>code_interpreter (Python)<br/>shell (bash /mnt/data)</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>Python only, stateless per call</small></td>
-      </tr>
-      <tr>
-        <td>URL / Web Fetch<small>Read a specific URL</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>web_fetch_20260209</small></td>
-        <td class="c-no">❌</td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>url_context</small></td>
-      </tr>
-      <tr>
-        <td>Image Generation<small>Text → image</small></td>
-        <td class="c-no">❌</td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>image_generation (gpt-image-2)</small></td>
-        <td class="c-no">❌ <small>Imagen 4 via separate API</small></td>
-      </tr>
-      <tr>
-        <td>Maps / Location</td>
-        <td class="c-no">❌</td>
-        <td class="c-no">❌</td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>google_maps</small></td>
-      </tr>
-      <tr>
-        <td>MCP Connector<small>Call your MCP server</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>mcp-client-2025-11-20<br/>Anthropic calls MCP server</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>type:mcp<br/>OpenAI calls MCP server</small></td>
-        <td class="c-no">❌ <small>No native MCP connector</small></td>
-      </tr>
-      <tr>
-        <td>Agent Skills<small>SKILL.md standard</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>container.skills + Skills API<br/>Native progressive disclosure</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>shell.environment.skills<br/>Mounted in container</small></td>
-        <td class="c-harness">⚠️ <span class="badge badge-harness">harness</span><small>System prompt injection only</small></td>
-      </tr>
-      <tr>
-        <td>Advisor Tool<small>Sonnet consults Opus</small></td>
-        <td class="c-yes">✅ <span class="badge badge-beta">beta</span><small>advisor_20260301<br/>Server-side sub-inference</small></td>
-        <td class="c-no">❌</td>
-        <td class="c-no">❌</td>
-      </tr>
-      <tr>
-        <td>Memory Tool<small>Persistent /memories/</small></td>
-        <td class="c-harness">⚠️ <span class="badge badge-harness">harness</span><small>memory_20250818 → disk</small></td>
-        <td class="c-no">❌ <small>Use conversation history</small></td>
-        <td class="c-no">❌</td>
-      </tr>
-      <tr>
-        <td>Container / Filesystem<small>Files persist across turns</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>30d via container_id</small></td>
-        <td class="c-yes">✅ <span class="badge badge-api">API</span><small>/mnt/data via container_id</small></td>
-        <td class="c-harness">⚠️ <span class="badge badge-harness">harness</span><small>workspace/ on disk</small></td>
-      </tr>
-      <tr>
-        <td>Context Window</td>
-        <td><strong>1M tokens</strong><small>Opus 4.7, Sonnet 4.6<br/>200K for Haiku 4.5</small></td>
-        <td><strong>1M tokens</strong><small>gpt-5.5 only<br/>128K for others</small></td>
-        <td class="c-yes"><strong>1M tokens</strong><small>All 2.5 + 3 models</small></td>
-      </tr>
-    </tbody>
-  </table>
-
-  <!-- ══════════════════════════════════════════════════════ -->
-  <h2>AGENTS.md &amp; Memory <a class="anchor" href="#memory" id="memory">#</a></h2>
-
-  <div class="note">
-    There are <strong>two separate files</strong> called AGENTS.md. They serve different purposes and neither replaces the other.
-  </div>
-
-  <div class="split">
-    <div class="card">
-      <div class="card-title">📄 AGENTS.md — Instructions (static)</div>
-      <div class="card-body">
-        Lives at <code>llm-explorer/AGENTS.md</code>.<br/><br/>
-        Loaded as the <strong>system prompt</strong> on every API call to all three providers.
-        Defines the agent's role, memory protocol, tool list, and behavioral rules.<br/><br/>
-        <strong>Never written by the model.</strong> You edit this file manually to change how the agent behaves.
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">🧠 memories/AGENTS.md — Persistent Memory (dynamic)</div>
-      <div class="card-body">
-        Lives at <code>llm-explorer/memories/AGENTS.md</code>.<br/><br/>
-        <strong>Written by the model</strong> via the <code>memory_20250818</code> tool (Anthropic only).
-        The model reads it at the start of every session to restore context from prior conversations.<br/><br/>
-        Contains: learned user preferences, durable facts, VIP senders, recurring rules.
-      </div>
-    </div>
-  </div>
-
-  <h3>How memory persists across sessions</h3>
-  <div class="flow" style="max-width:700px">
-    <div class="flow-box">
-      <div class="flow-label">Session 1</div>
-      <div class="flow-content">User: "My name is Eric"<br/>Model writes to<br/>/memories/AGENTS.md</div>
-    </div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box">
-      <div class="flow-label">Disk</div>
-      <div class="flow-content">memories/AGENTS.md<br/>contains "User: Eric"</div>
-    </div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box highlight">
-      <div class="flow-label">Session 2 (new tab)</div>
-      <div class="flow-content">Model: <code>view /memories</code><br/>Reads back "User: Eric"<br/>Remembers you</div>
-    </div>
-  </div>
-
-  <h3>What is durable vs. transient</h3>
-  <table>
-    <tr><th>Write to memory (durable)</th><th>Don't write (transient)</th></tr>
-    <tr><td>User preferences ("prefers concise")</td><td>One-off instructions ("search X today")</td></tr>
-    <tr><td>Recurring workflow patterns</td><td>Current task state</td></tr>
-    <tr><td>Learned facts about user's projects</td><td>Temporary overrides</td></tr>
-    <tr><td>Research depth / style preferences</td><td>"Do X just this once"</td></tr>
-  </table>
-
-  <!-- ══════════════════════════════════════════════════════ -->
-  <h2>Skills (SKILL.md Standard) <a class="anchor" href="#skills" id="skills">#</a></h2>
-
-  <p>
-    Skills follow the <a href="https://agentskills.io" style="color:var(--accent)">open agentskills.io standard</a>.
-    Each skill is a folder with a <code>SKILL.md</code> file containing a YAML frontmatter header and instructions.
-    Browse community skills at <a href="https://skillsmp.com" style="color:var(--accent)">skillsmp.com</a>.
-  </p>
-
-  <h3>What happens when you load a skill</h3>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:24px">
-    <div class="card" style="border-color:var(--accent-border)">
-      <div class="card-title" style="color:var(--accent)">1. Upload once</div>
-      <div class="card-body">Harness zips SKILL.md, uploads to provider's Skills API, caches the <code>skill_id</code>. Only happens on first load.</div>
-    </div>
-    <div class="card">
-      <div class="card-title">2. Reference by ID</div>
-      <div class="card-body">Every API call includes only the <code>skill_id</code>. The SKILL.md content is never in the request.</div>
-    </div>
-    <div class="card" style="border-color:rgba(52,211,153,.25)">
-      <div class="card-title" style="color:var(--green)">3. API does the rest</div>
-      <div class="card-body">Provider loads skill metadata first (~100 tokens), then full SKILL.md only when the model decides it's relevant.</div>
-    </div>
-  </div>
-
-  <h3>Progressive disclosure (Anthropic + OpenAI)</h3>
-  <table>
-    <tr><th>Level</th><th>When</th><th>Tokens</th><th>What loads</th></tr>
-    <tr><td>1 — Metadata</td><td>Every call</td><td>~100</td><td>name + description only</td></tr>
-    <tr><td>2 — Instructions</td><td>When model triggers skill</td><td>&lt;5K</td><td>Full SKILL.md body</td></tr>
-    <tr><td>3 — Resources</td><td>As needed by skill</td><td>On demand</td><td>scripts/, references/, assets/</td></tr>
-  </table>
-
-  <h3>Skill handling by provider</h3>
-  <div class="split">
-    <div class="card">
-      <div class="card-title">✅ Anthropic — Native Skills API</div>
-      <div class="card-body">
-        Skills uploaded via <code>/v1/skills</code>.<br/>
-        Referenced in <code>container.skills</code> parameter.<br/>
-        Requires <code>code_execution</code> tool + betas:<br/>
-        <code>code-execution-2025-08-25, skills-2025-10-02</code><br/><br/>
-        Progressive disclosure is handled entirely server-side in Anthropic's container.
-        The model literally reads SKILL.md from the container filesystem via bash.
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">✅ OpenAI — Shell Environment Skills</div>
-      <div class="card-body">
-        Skills uploaded via <code>client.skills.create()</code>.<br/>
-        Referenced in <code>tools[shell].environment.skills</code>.<br/>
-        Mounted in the hosted shell container.<br/><br/>
-        The model can read skill files via bash commands in the container.
-      </div>
-    </div>
-  </div>
-  <div class="card" style="border-color:rgba(251,191,36,.2)">
-    <div class="card-title" style="color:var(--yellow)">⚠️ Gemini — System Prompt Injection</div>
-    <div class="card-body">
-      Gemini has no native Skills API. The full SKILL.md content is injected into the
-      <code>system_instruction</code> on every call. No upload, no progressive disclosure —
-      the entire skill content counts against the context window each time.
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════ -->
-  <h2>File Structure <a class="anchor" href="#files" id="files">#</a></h2>
-
-  <p>All state lives on your machine. Nothing is stored in the cloud except provider-side data (container files, uploaded skills, uploaded file_ids).</p>
-
-  <div class="tree">
-    <div class="tree-line"><span class="tree-dir">llm-explorer/</span></div>
-    <div class="tree-line">├── <span class="tree-dir">AGENTS.md</span>                   <span class="tree-comment">← static instructions (system prompt for all providers)</span></div>
-    <div class="tree-line">│</div>
-    <div class="tree-line">├── <span class="tree-dir">memories/</span>                   <span class="tree-comment">← model's writable memory (memory_20250818 tool)</span></div>
-    <div class="tree-line">│   ├── <span class="tree-file">AGENTS.md</span>               <span class="tree-comment">← model writes durable preferences here</span></div>
-    <div class="tree-line">│   ├── <span class="tree-file">*.md</span>                    <span class="tree-comment">← any other files model chooses to create</span></div>
-    <div class="tree-line">│   └── <span class="tree-dir">skills/</span>                 <span class="tree-comment">← skills the model has loaded</span></div>
-    <div class="tree-line">│</div>
-    <div class="tree-line">├── <span class="tree-dir">workspace/</span>                  <span class="tree-comment">← bash workspace for Gemini (permanent local)</span></div>
-    <div class="tree-line">│   └── <span class="tree-file">todo.md, *.py, ...</span>       <span class="tree-comment">← files Gemini writes via bash tool</span></div>
-    <div class="tree-line">│</div>
-    <div class="tree-line">├── <span class="tree-dir">sessions/</span>                   <span class="tree-comment">← conversation history + container IDs</span></div>
-    <div class="tree-line">│   └── <span class="tree-file">default.json</span>            <span class="tree-comment">← {container_ids: {anthropic: "...", openai: "..."}}</span></div>
-    <div class="tree-line">│</div>
-    <div class="tree-line">├── <span class="tree-file">skill_ids_cache.json</span>        <span class="tree-comment">← Anthropic skill_id cache (hash → skill_id)</span></div>
-    <div class="tree-line">└── <span class="tree-file">openai_skill_ids.json</span>       <span class="tree-comment">← OpenAI skill_id cache</span></div>
-  </div>
-
-  <h3>Cloud-side state (provider manages)</h3>
-  <table>
-    <tr><th>What</th><th>Where</th><th>Lifetime</th></tr>
-    <tr>
-      <td>Code execution container<small>Anthropic</small></td>
-      <td>Anthropic's servers</td>
-      <td>30 days from creation. Files in container persist. Referenced by <code>container_id</code> in sessions/default.json.</td>
-    </tr>
-    <tr>
-      <td>Shell container<small>OpenAI</small></td>
-      <td>OpenAI's servers</td>
-      <td>Until expiry (configurable). Files in /mnt/data persist. Referenced by container ID.</td>
-    </tr>
-    <tr>
-      <td>Uploaded Skills<small>Anthropic + OpenAI</small></td>
-      <td>Provider's servers</td>
-      <td>Until you delete them. Referenced by skill_id cached locally.</td>
-    </tr>
-    <tr>
-      <td>Files API uploads<small>Anthropic</small></td>
-      <td>Anthropic's servers</td>
-      <td>Until explicitly deleted. Indefinite.</td>
-    </tr>
-    <tr>
-      <td>Conversation history<small>OpenAI previous_response_id</small></td>
-      <td>OpenAI's servers</td>
-      <td>30 days (or indefinite via Conversations API).</td>
-    </tr>
-    <tr>
-      <td>Files<small>Gemini</small></td>
-      <td>Google's servers</td>
-      <td>48 hours only. Not suitable for cross-session.</td>
-    </tr>
-  </table>
-
-  <!-- ══════════════════════════════════════════════════════ -->
-  <h2>MCP Servers <a class="anchor" href="#mcp" id="mcp">#</a></h2>
-
-  <p>
-    MCP (Model Context Protocol) lets you connect external tools to the model.
-    For Anthropic and OpenAI, <strong>the API makes the MCP calls</strong> — your harness just passes the server URL.
-    For Gemini, there is no native connector.
-  </p>
-
-  <div class="split">
-    <div class="card">
-      <div class="card-title">✅ Anthropic + OpenAI — Native MCP</div>
-      <div class="card-body">
-        You provide: server URL + optional auth token.<br/>
-        The provider's API calls the MCP server, discovers tools, executes them.<br/>
-        The harness does nothing except pass the URL in the request.<br/><br/>
-        Requires: publicly accessible HTTPS endpoint (SSE or Streamable HTTP).
-        Local servers need ngrok or similar.<br/><br/>
-        Free public test server: <code>https://mcp.deepwiki.com/mcp</code>
-      </div>
-    </div>
-    <div class="card" style="border-color:rgba(251,191,36,.2)">
-      <div class="card-title" style="color:var(--yellow)">⚠️ Gemini — No Native MCP</div>
-      <div class="card-body">
-        Gemini's API has no MCP connector. To use MCP with Gemini you'd need to implement a client-side loop:<br/>
-        1. Call MCP server to discover tools<br/>
-        2. Convert to <code>function_declarations</code><br/>
-        3. When model calls a function, call MCP and return result<br/><br/>
-        This would require additional harness code not currently implemented.
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════ -->
-  <h2>Current Models <a class="anchor" href="#models" id="models">#</a></h2>
-
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-    <div>
-      <h3 style="margin-top:0">Anthropic</h3>
-      <div class="pill-list">
-        <span class="pill active">claude-opus-4-7</span>
-        <span class="pill active">claude-sonnet-4-6</span>
-        <span class="pill">claude-haiku-4-5</span>
-        <span class="pill">claude-opus-4-6</span>
-        <span class="pill">claude-sonnet-4-5</span>
-      </div>
-      <div style="font-size:10px;color:var(--text-dim)">Bold = recommended<br/>Opus/Sonnet: 1M ctx · Haiku: 200K</div>
-    </div>
-    <div>
-      <h3 style="margin-top:0">OpenAI</h3>
-      <div class="pill-list">
-        <span class="pill active">gpt-5.5</span>
-        <span class="pill active">gpt-5.4</span>
-        <span class="pill active">gpt-5.4-mini</span>
-        <span class="pill">gpt-5.4-nano</span>
-        <span class="pill">gpt-5</span>
-        <span class="pill">gpt-4.1</span>
-        <span class="pill">gpt-4o</span>
-        <span class="pill">o3</span>
-      </div>
-      <div style="font-size:10px;color:var(--text-dim)">gpt-5.5: 1M ctx · others: 128K</div>
-    </div>
-    <div>
-      <h3 style="margin-top:0">Gemini</h3>
-      <div class="pill-list">
-        <span class="pill active">gemini-2.5-pro</span>
-        <span class="pill active">gemini-2.5-flash</span>
-        <span class="pill">gemini-2.5-flash-lite</span>
-        <span class="pill">gemini-3.1-pro-preview</span>
-        <span class="pill">gemini-3-flash-preview</span>
-        <span class="pill">gemini-2.0-flash</span>
-      </div>
-      <div style="font-size:10px;color:var(--text-dim)">All 2.5+ models: 1M ctx</div>
-    </div>
-  </div>
-
-  <p style="margin-top:32px;font-size:11px;color:var(--text-dim)">
-    All information verified against live provider documentation on 2026-05-17.<br/>
-    Sources: <a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference" style="color:var(--accent)">Anthropic tool reference</a> ·
-    <a href="https://developers.openai.com/api/docs/models/all" style="color:var(--accent)">OpenAI models</a> ·
-    <a href="https://ai.google.dev/gemini-api/docs/models" style="color:var(--accent)">Gemini models</a> ·
-    <a href="https://agentskills.io" style="color:var(--accent)">agentskills.io</a>
-  </p>
+  <!-- ── MODELS ── -->
+  <section>
+    <h2>Current models</h2>
+    <table>
+      <thead><tr><th>Provider</th><th>Recommended</th><th>Others</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Anthropic</td>
+          <td class="g">claude-opus-4-7, claude-sonnet-4-6<small>1M ctx</small></td>
+          <td class="d">claude-haiku-4-5 (200K), claude-opus-4-6, claude-sonnet-4-5</td>
+        </tr>
+        <tr>
+          <td>OpenAI</td>
+          <td class="g">gpt-5.5, gpt-5.4, gpt-5.4-mini<small>5.5 = 1M ctx; others = 128K</small></td>
+          <td class="d">gpt-5.4-nano, gpt-5, gpt-4.1, gpt-4o, o3</td>
+        </tr>
+        <tr>
+          <td>Gemini</td>
+          <td class="g">gemini-2.5-pro, gemini-2.5-flash<small>1M ctx</small></td>
+          <td class="d">gemini-2.5-flash-lite, gemini-3.1-pro-preview, gemini-3-flash-preview, gemini-2.0-flash</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:8px;font-size:9px;color:var(--dim)">Verified against live provider docs 2026-05-17</p>
+  </section>
 
 </div>
 </body>

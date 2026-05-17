@@ -9,15 +9,21 @@
 <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
+<nav class="topbar">
+  <span class="topbar-logo">⚡ LLM Explorer</span>
+  <div class="topbar-links">
+    <a href="/" class="topbar-link active">Chat</a>
+    <a href="/about" class="topbar-link">About</a>
+    <a href="https://github.com/EricXu4630/llm-explorer" target="_blank" class="topbar-link">GitHub</a>
+  </div>
+</nav>
+
 <div class="app">
 
   <!-- ═══ SIDEBAR ═══ -->
   <aside class="sidebar">
     <div class="sidebar-top">
-      <div class="logo">
-        <span class="logo-bolt">⚡</span>
-        <span class="logo-text">LLM Explorer</span>
-      </div>
+      <div style="height:4px"></div>
 
       <!-- Provider -->
       <section class="panel">
@@ -68,7 +74,6 @@
         <button class="sys-link" onclick="openMemoryDrawer()">📁 Memory &amp; Files</button>
         <button class="sys-link" onclick="toggleCapabilities()">📊 Capabilities Matrix</button>
         <button class="sys-link danger" onclick="clearAll()">⊗ Clear Session</button>
-        <a href="/about" target="_blank" class="sys-link" style="text-decoration:none;display:block">📖 How It Works</a>
       </section>
     </div>
 
