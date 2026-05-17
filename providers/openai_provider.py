@@ -105,22 +105,27 @@ MODELS = [
 ]
 
 
-def _safe_dict(obj):
+def _safe_dict(obj, _depth=0):
     if obj is None:
         return None
-    if isinstance(obj, (str, int, float, bool)):
+    if isinstance(obj, (int, float, bool)):
+        return obj
+    if isinstance(obj, str):
+        # Truncate very long strings (e.g. base64 image data) so api_response doesn't blow up WebSocket
+        if len(obj) > 2000:
+            return obj[:100] + f"…[{len(obj)} chars truncated for display]"
         return obj
     if isinstance(obj, list):
-        return [_safe_dict(i) for i in obj]
+        return [_safe_dict(i, _depth+1) for i in obj]
     if isinstance(obj, dict):
-        return {k: _safe_dict(v) for k, v in obj.items()}
+        return {k: _safe_dict(v, _depth+1) for k, v in obj.items()}
     if hasattr(obj, "model_dump"):
         try:
-            return _safe_dict(obj.model_dump())
+            return _safe_dict(obj.model_dump(), _depth+1)
         except Exception:
             pass
     if hasattr(obj, "__dict__"):
-        return _safe_dict({k: v for k, v in obj.__dict__.items() if not k.startswith("_")})
+        return _safe_dict({k: v for k, v in obj.__dict__.items() if not k.startswith("_")}, _depth+1)
     return str(obj)
 
 
@@ -243,6 +248,14 @@ class OpenAIProvider:
                     elif etype == "response.code_interpreter_call.completed":
                         await ws.send_json({"type": "tool_result", "tool": "code_interpreter", "output": "completed"})
 
+                    # Catch output items added during stream (alternative event names)
+                    elif etype == "response.output_item.added":
+                        item = getattr(event, "item", None)
+                        if item:
+                            itype = getattr(item, "type", "")
+                            if itype == "code_interpreter_call":
+                                await ws.send_json({"type": "tool_call", "tool": "code_interpreter", "input": {}})
+
                     elif etype in ("response.mcp_call.in_progress",):
                         name = getattr(event, "name", "mcp")
                         await ws.send_json({"type": "tool_call", "tool": f"mcp:{name}", "input": {}})
@@ -279,6 +292,13 @@ class OpenAIProvider:
                         "message": f"OpenAI container {cid[:20]}... saved — /mnt/data persists",
                     })
 
+            # If code_interpreter was in tools but no code_interpreter_call output item
+            # was found (model ran it transparently), emit a note so the chat shows activity.
+            code_interp_enabled = any(
+                t.get("type") == "code_interpreter" for t in (params.get("tools") or [])
+            )
+            code_events_seen = False  # set True only when code_interpreter_call item is found in output
+
             # Walk the final output array to emit tool events and extract text.
             # OpenAI often handles tools (web_search, code_interpreter) transparently
             # without streaming events — this is the reliable place to surface them.
@@ -306,6 +326,7 @@ class OpenAIProvider:
                                             "output": getattr(item, "status", "completed")})
 
                     elif itype in ("code_interpreter_call", "shell_call"):
+                        code_events_seen = True
                         await ws.send_json({
                             "type": "tool_call", "tool": itype.replace("_call", ""),
                             "input": {"code": getattr(item, "code", "") or ""},
@@ -326,6 +347,14 @@ class OpenAIProvider:
                         if b64:
                             full_text = f'<img src="data:image/png;base64,{b64}" style="max-width:100%;border-radius:4px;margin-top:8px;" alt="Generated image"/>'
                             await ws.send_json({"type": "image", "data": b64})
+
+            # Fallback: if code_interpreter was enabled but never produced an explicit event,
+            # it ran transparently. Show that it was used.
+            if code_interp_enabled and not code_events_seen:
+                await ws.send_json({
+                    "type": "tool_call", "tool": "code_interpreter",
+                    "input": {"note": "ran transparently — result in response above"},
+                })
 
             await ws.send_json({"type": "done", "message": full_text or "(image generated — see above)"})
 

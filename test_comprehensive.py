@@ -43,6 +43,14 @@ def chk(name, ok, detail=""):
     print(f"  {status}  {safe}")
     return ok
 
+def chk_rl(name, ok, err, detail=""):
+    """Accept rate-limit errors as skips (not failures)."""
+    if err and ("rate limit" in str(err).lower() or "429" in str(err) or "quota" in str(err).lower()):
+        RESULTS.append((name, True, "(rate-limited — skipped)"))
+        print(f"  ⚠️   {name} (rate-limited — skipped)")
+        return True
+    return chk(name, ok, detail)
+
 
 def has_event(evs, type_, **kw):
     for e in evs:
@@ -130,7 +138,7 @@ async def test_anthropic():
 # OPENAI
 # ═══════════════════════════════════════════════════════
 async def test_openai():
-    P, M = "openai", "gpt-4o-mini"
+    P, M = "openai", "gpt-5.4-mini"
     print(f"\n── OpenAI ({M}) ─────────────────────────────────")
 
     # 1. Basic chat
@@ -142,17 +150,17 @@ async def test_openai():
 
     # 2. Web search
     evs, txt, err = await chat(P, M, "What day of the week is today? Use web search.", {"web_search": True})
-    chk("openai/web-search/no-error", not err, err or "")
-    chk("openai/web-search/got-text", len(txt) > 10)
-    chk("openai/web-search/search-event", has_event(evs, "tool_call"))
+    chk_rl("openai/web-search/no-error", not err, err, err or "")
+    chk_rl("openai/web-search/got-text", len(txt) > 10, err)
+    chk_rl("openai/web-search/search-event", has_event(evs, "tool_call"), err)
 
     # 3. Code interpreter
     evs, txt, err = await chat(P, M, "Use code interpreter to compute the sum of 1 to 100.", {"code_interpreter": True})
-    chk("openai/code-interpreter/no-error", not err, err or "")
-    chk("openai/code-interpreter/got-text", len(txt) > 5)
+    chk_rl("openai/code-interpreter/no-error", not err, err, err or "")
+    chk_rl("openai/code-interpreter/got-text", len(txt) > 5, err)
 
     # 4. Web search + code interpreter
-    evs, txt, err = await chat(P, "gpt-4o-mini", "Search for today's date, then write Python to print it.",
+    evs, txt, err = await chat(P, "gpt-5.4-mini", "Search for today's date, then write Python to print it.",
         {"web_search": True, "code_interpreter": True}, timeout=60)
     is_ratelimit = err and ("rate limit" in str(err).lower() or "429" in str(err))
     chk("openai/search+code/no-error", not err or is_ratelimit,
@@ -161,8 +169,8 @@ async def test_openai():
 
     # 5. AGENTS.md loaded
     evs, txt, err = await chat(P, M, "What is your primary mission? (one sentence)", {})
-    chk("openai/agents-md/loaded", not err)
-    chk("openai/agents-md/content", any(w in txt.lower() for w in ["research","explorer","agent","tool"]))
+    chk_rl("openai/agents-md/loaded", not err, err)
+    chk_rl("openai/agents-md/content", any(w in txt.lower() for w in ["research","explorer","agent","tool"]), err)
 
     # 6. Previous response ID chaining
     from session_manager import load_session
@@ -174,8 +182,8 @@ async def test_openai():
     evs, txt, err = await chat(P, M,
         "Use the DeepWiki MCP to ask: what is Python?",
         {}, mcp=[{"url":"https://mcp.deepwiki.com/mcp","name":"deepwiki","token":""}], timeout=45)
-    chk("openai/mcp-native/no-error", not err, err or "")
-    chk("openai/mcp-native/got-text", len(txt) > 10)
+    chk_rl("openai/mcp-native/no-error", not err, err, err or "")
+    chk_rl("openai/mcp-native/got-text", len(txt) > 10, err)
 
 
 # ═══════════════════════════════════════════════════════
@@ -296,7 +304,7 @@ async def test_filesystem():
         str(sess.get("container_ids",{})))
 
     # OpenAI: code interpreter
-    evs, txt, err = await chat("openai","gpt-4o-mini",
+    evs, txt, err = await chat("openai","gpt-5.4-mini",
         "Use code interpreter to compute fibonacci(10).",
         {"code_interpreter": True})
     chk("fs/openai/code-interpreter/no-error", not err, err or "")
@@ -362,7 +370,7 @@ async def test_mcp():
         chk("mcp/anthropic-native/mcp-tool-called", has_event(evs, "tool_call"))
 
         # OpenAI native MCP
-        evs, txt, err = await chat("openai","gpt-4o-mini",
+        evs, txt, err = await chat("openai","gpt-5.4-mini",
             "Use the DeepWiki MCP server to ask: what is Python programming language?",
             {}, mcp=[{"url":"https://mcp.deepwiki.com/mcp","name":"deepwiki","token":""}], timeout=45)
         is_rl = err and "rate limit" in str(err).lower()
@@ -402,7 +410,7 @@ async def test_agents_md():
         chk("agents-md/memory-file-readable", len(mem_content) > 0)
 
     # All 3 providers load AGENTS.md
-    for provider, model in [("anthropic","claude-sonnet-4-6"), ("openai","gpt-4o-mini")]:
+    for provider, model in [("anthropic","claude-sonnet-4-6"), ("openai","gpt-5.4-mini")]:
         evs, txt, err = await chat(provider, model,
             "In one sentence: what is your primary role or mission?", {})
         chk(f"agents-md/{provider}/loaded-as-system", not err)
