@@ -30,13 +30,51 @@ FILES API:
   (vs Gemini: 48h only; vs Anthropic: indefinite)
 """
 
+import io
 import json
+import zipfile
+import hashlib
 import pathlib
 from openai import AsyncOpenAI
-
-_AGENTS_MD = pathlib.Path(__file__).parent.parent / "AGENTS.md"
 from fastapi import WebSocket
 from session_manager import get_container_id, set_container_id
+
+_AGENTS_MD = pathlib.Path(__file__).parent.parent / "AGENTS.md"
+_SKILL_CACHE = pathlib.Path(__file__).parent.parent / "openai_skill_ids.json"
+
+
+def _load_skill_cache() -> dict:
+    if _SKILL_CACHE.exists():
+        try: return json.loads(_SKILL_CACHE.read_text())
+        except Exception: pass
+    return {}
+
+def _save_skill_cache(cache: dict):
+    _SKILL_CACHE.write_text(json.dumps(cache, indent=2))
+
+def _skill_to_zip(skill: dict) -> bytes:
+    name = skill["name"].lower().replace(" ", "-")
+    skill_md = f"---\nname: {name}\ndescription: {skill['description']}\n---\n\n{skill['content']}"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"{name}/SKILL.md", skill_md)
+    return buf.getvalue()
+
+async def upload_skill_openai(client: AsyncOpenAI, skill: dict) -> str:
+    """Upload a skill to OpenAI Skills API. Returns skill_id (cached)."""
+    cache = _load_skill_cache()
+    key = hashlib.sha1(f"{skill['name']}{skill['content'][:100]}".encode()).hexdigest()[:12]
+    if key in cache:
+        return cache[key]
+    name = skill["name"].lower().replace(" ", "-")
+    zip_bytes = _skill_to_zip(skill)
+    result = await client.skills.create(
+        files=[(f"{name}.zip", io.BytesIO(zip_bytes), "application/zip")]
+    )
+    skill_id = result.id
+    cache[key] = skill_id
+    _save_skill_cache(cache)
+    return skill_id
 
 # Tool definitions verified against https://developers.openai.com/api/docs/guides/tools (2026-05-17)
 SERVER_TOOLS = {
@@ -46,10 +84,12 @@ SERVER_TOOLS = {
     # file_search requires vector_store_ids — skip if not provided
 }
 
-# Shell tool — hosted container with /mnt/data filesystem
+# Shell tool — OpenAI manages container; /mnt/data filesystem persists across turns.
+# environment.type = "container_auto": OpenAI provisions + manages the container.
+# "hosted" was the old name; current API uses "container_auto".
 SHELL_TOOL = {
     "type": "shell",
-    "environment": {"type": "hosted"},
+    "environment": {"type": "container_auto"},
 }
 
 # Models verified against https://developers.openai.com/api/docs/models/all (2026-05-17)
@@ -115,10 +155,26 @@ class OpenAIProvider:
         system = _build_system(skills)
         tools = [v for k, v in SERVER_TOOLS.items() if tools_config.get(k)]
 
-        # Shell tool: hosted container with /mnt/data filesystem
+        # Shell tool: hosted container with /mnt/data filesystem.
+        # If skills are loaded, mount them inside the shell environment — this is the
+        # OpenAI native Skills API (not system-prompt injection).
         use_shell = tools_config.get("shell", False)
-        if use_shell:
-            tools.append(SHELL_TOOL)
+        if use_shell or skills:
+            shell_tool = dict(SHELL_TOOL)
+            if skills:
+                mounted = []
+                for skill in skills:
+                    try:
+                        sid = await upload_skill_openai(self.client, skill)
+                        mounted.append({"type": "skill_reference", "skill_id": sid})
+                        await ws.send_json({"type": "info",
+                            "message": f"OpenAI Skill '{skill['name']}' → skill_id={sid[:20]}... (mounted in shell)"})
+                    except Exception as e:
+                        await ws.send_json({"type": "info",
+                            "message": f"Skill upload failed ({e}), falling back to system prompt"})
+                if mounted:
+                    shell_tool["environment"] = {**shell_tool["environment"], "skills": mounted}
+            tools.append(shell_tool)
 
         # MCP servers — OpenAI calls them server-side
         for mcp in mcp_servers:
@@ -223,17 +279,33 @@ class OpenAIProvider:
                         "message": f"OpenAI container {cid[:20]}... saved — /mnt/data persists",
                     })
 
-            # Extract text from output if not streamed
+            # Extract text and handle special output types from final response
             if not full_text and hasattr(final, "output"):
                 for item in (final.output or []):
-                    if getattr(item, "type", "") == "message":
+                    itype = getattr(item, "type", "")
+
+                    if itype == "message":
                         for part in getattr(item, "content", []):
                             text = getattr(part, "text", "")
                             if text:
                                 full_text += text
                                 await ws.send_json({"type": "token", "content": text})
 
-            await ws.send_json({"type": "done", "message": full_text})
+                    elif itype == "image_generation_call":
+                        # Image is base64 in item.result — send as a tool_result event
+                        b64 = getattr(item, "result", "") or ""
+                        await ws.send_json({
+                            "type": "tool_result",
+                            "tool": "image_generation",
+                            "output": f"data:image/png;base64,{b64[:40]}... ({len(b64)} bytes)",
+                        })
+                        # Put the image in the chat as an <img> tag via a special token
+                        if b64:
+                            img_html = f'<img src="data:image/png;base64,{b64}" style="max-width:100%;border-radius:4px;margin-top:8px;" alt="Generated image"/>'
+                            full_text = img_html
+                            await ws.send_json({"type": "image", "data": b64})
+
+            await ws.send_json({"type": "done", "message": full_text or "(image generated — see above)"})
 
         except Exception as e:
             await ws.send_json({"type": "error", "message": str(e)})

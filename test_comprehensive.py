@@ -241,6 +241,42 @@ async def test_gemini():
 # ═══════════════════════════════════════════════════════
 # FILESYSTEM (all providers)
 # ═══════════════════════════════════════════════════════
+async def _tool_probe(provider, model, tools, msg, label, timeout=35):
+    evs, txt, err = await chat(provider, model, msg, tools, timeout=timeout)
+    # Accept: real text, "(image generated)", or rate-limited
+    has_image = any(e.get("type") == "image" for e in evs)
+    ok = not err and (len(txt) > 2 or has_image or "image" in txt.lower())
+    is_rl = err and ("429" in str(err) or "rate limit" in str(err).lower())
+    chk(label, ok or is_rl, "(rate-limited)" if is_rl else (err[:80] if err else f"len={len(txt)}"))
+
+
+async def test_all_tools():
+    """Test every individual tool across all providers."""
+    print("\n── All Tools — individual probe ─────────────────")
+
+    # ── Anthropic ──
+    await _tool_probe("anthropic","claude-sonnet-4-6",{"web_search":True},    "Today date?",         "anthropic/web_search")
+    await _tool_probe("anthropic","claude-sonnet-4-6",{"code_execution":True},"Compute 2**16",       "anthropic/code_execution")
+    await _tool_probe("anthropic","claude-sonnet-4-6",{"web_fetch":True},     "Fetch example.com",   "anthropic/web_fetch")
+    await _tool_probe("anthropic","claude-sonnet-4-6",{"memory":True},        "view /memories",      "anthropic/memory")
+    await _tool_probe("anthropic","claude-sonnet-4-6",{"bash_tool":True},     "Run: echo hello",     "anthropic/bash_tool")
+    await _tool_probe("anthropic","claude-sonnet-4-6",{"advisor":True},       "Write Python hello",  "anthropic/advisor", timeout=60)
+
+    # ── OpenAI ──
+    await _tool_probe("openai","gpt-5.4-mini",{"web_search":True},       "Today date?",             "openai/web_search")
+    await _tool_probe("openai","gpt-5.4-mini",{"code_interpreter":True}, "Compute 2**16",           "openai/code_interpreter")
+    await _tool_probe("openai","gpt-5.4-mini",{"shell":True},            "Run: echo hello",         "openai/shell",       timeout=45)
+    await _tool_probe("openai","gpt-5.4-mini",{"image_generation":True}, "Draw a tiny red dot",     "openai/image_generation", timeout=60)
+    await _tool_probe("openai","gpt-5.4-mini",{"file_search":True},      "What files are indexed?", "openai/file_search")
+
+    # ── Gemini ──
+    await _tool_probe("gemini","gemini-2.5-flash",{"google_search":True},  "Today date?",             "gemini/google_search")
+    await _tool_probe("gemini","gemini-2.5-flash",{"code_execution":True}, "Compute 2**16",           "gemini/code_execution")
+    await _tool_probe("gemini","gemini-2.5-flash",{"url_context":True},    "Fetch example.com title", "gemini/url_context")
+    await _tool_probe("gemini","gemini-2.5-flash",{"google_maps":True},    "Paris location",          "gemini/google_maps")
+    await _tool_probe("gemini","gemini-2.5-flash",{"bash":True},           "Run: echo hello",         "gemini/bash")
+
+
 async def test_filesystem():
     print("\n── Filesystem (all providers) ───────────────────")
 
@@ -408,17 +444,18 @@ async def main():
         sys.exit(1)
 
     suites = sys.argv[1:] if len(sys.argv) > 1 else [
-        "agents_md", "anthropic", "openai", "gemini", "filesystem", "memory", "mcp"
+        "all_tools", "agents_md", "anthropic", "openai", "gemini", "filesystem", "memory", "mcp"
     ]
 
     suite_map = {
-        "agents_md": test_agents_md,
-        "anthropic": test_anthropic,
-        "openai": test_openai,
-        "gemini": test_gemini,
+        "all_tools":  test_all_tools,
+        "agents_md":  test_agents_md,
+        "anthropic":  test_anthropic,
+        "openai":     test_openai,
+        "gemini":     test_gemini,
         "filesystem": test_filesystem,
-        "memory": test_memory,
-        "mcp": test_mcp,
+        "memory":     test_memory,
+        "mcp":        test_mcp,
     }
 
     for name in suites:

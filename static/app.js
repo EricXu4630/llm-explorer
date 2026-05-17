@@ -396,6 +396,20 @@ function handleEvent(evt) {
       appendToolEvent("result", evt.tool, evt.output);
       scrollBottom();
       break;
+    case "image": {
+      // Image generated (e.g. OpenAI image_generation tool) — display inline
+      if (!state.streamEl) state.streamEl = appendAssistantBubble(false);
+      const bubble = state.streamEl.querySelector(".msg-bubble");
+      const cur = bubble.querySelector(".cursor");
+      if (cur) bubble.removeChild(cur);
+      const img = document.createElement("img");
+      img.src = `data:image/png;base64,${evt.data}`;
+      img.style.cssText = "max-width:100%;border-radius:4px;margin-top:8px;display:block;";
+      img.alt = "Generated image";
+      bubble.appendChild(img);
+      scrollBottom(true);
+      break;
+    }
     case "info":
       appendInfo(evt.message);
       break;

@@ -127,7 +127,7 @@ def _serialize_response(response) -> dict:
         result["model_version"] = getattr(response, "model_version", None)
         for candidate in (response.candidates or []):
             parts = []
-            for part in (candidate.content.parts or []):
+            for part in (getattr(getattr(candidate, "content", None), "parts", None) or []):
                 p = {}
                 if part.text:
                     p["text"] = part.text[:500] + ("..." if len(part.text) > 500 else "")
@@ -184,11 +184,12 @@ class GeminiProvider:
         if tools_config.get("url_context"):
             tool_objs.append(types.Tool(url_context=types.UrlContext()))
         if tools_config.get("google_maps"):
+            # SDK uses types.GoogleMaps() not types.ToolGoogleMaps()
             try:
-                tool_objs.append(types.Tool(google_maps=types.ToolGoogleMaps()))
+                tool_objs.append(types.Tool(google_maps=types.GoogleMaps()))
             except AttributeError:
                 await ws.send_json({"type": "info",
-                    "message": "google_maps: ToolGoogleMaps not in this SDK version — skipped"})
+                    "message": "google_maps: not available in this SDK version — skipped"})
 
 
         # Client-side bash tool (harness executes)
@@ -253,7 +254,7 @@ class GeminiProvider:
                 break
 
             candidate = response.candidates[0]
-            parts = candidate.content.parts or []
+            parts = getattr(getattr(candidate, "content", None), "parts", None) or []
 
             # Collect text and tool calls from this response
             function_calls = []
