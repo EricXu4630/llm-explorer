@@ -33,14 +33,47 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--m
 
 /* ─── Layout ─────────────────────────────────────── */
 .app{
-  display:grid;
-  grid-template-columns:280px 1fr 380px;
+  display:flex;
   height:100vh;
   overflow:hidden;
 }
 
+/* ─── Resize Handles ─────────────────────────────── */
+.resize-handle{
+  width:5px;
+  flex-shrink:0;
+  background:var(--border);
+  cursor:col-resize;
+  position:relative;
+  z-index:10;
+  transition:background .12s;
+  user-select:none;
+}
+.resize-handle:hover,
+.resize-handle.dragging{
+  background:var(--accent);
+}
+.resize-handle::after{
+  content:'';
+  position:absolute;
+  top:50%;
+  left:1px;
+  transform:translateY(-50%);
+  width:3px;
+  height:28px;
+  border-radius:2px;
+  background:var(--border2);
+  transition:background .12s;
+}
+.resize-handle:hover::after,
+.resize-handle.dragging::after{
+  background:rgba(124,106,247,.7);
+}
+
 /* ─── Sidebar ─────────────────────────────────────── */
 .sidebar{
+  width:280px;
+  flex-shrink:0;
   background:var(--surface);
   border-right:1px solid var(--border);
   display:flex;
@@ -198,6 +231,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--m
 
 /* ─── Chat Pane ──────────────────────────────────── */
 .chat-pane{
+  flex:1;min-width:200px;
   display:flex;flex-direction:column;background:var(--bg);overflow:hidden;
   border-left:1px solid var(--border);border-right:1px solid var(--border);
 }
@@ -255,17 +289,41 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--m
 .msg.user .msg-bubble{background:var(--panel);border-color:var(--border2)}
 .msg.assistant .msg-bubble{background:transparent;border-color:transparent}
 
-/* tool events */
-.tool-event{
-  display:flex;gap:8px;padding:7px 10px;
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
-  font-size:10px;color:var(--text-dim);align-items:flex-start;
+/* ── Tool Cards ──────────────────────────────────── */
+.tool-card{
+  border:1px solid var(--border);border-radius:var(--r);
+  overflow:hidden;font-family:var(--mono);font-size:11px;
 }
-.tool-icon-lg{flex-shrink:0;font-size:12px;margin-top:1px}
-.tool-body{flex:1;min-width:0}
-.tool-label{color:var(--yellow);font-weight:500;letter-spacing:.3px}
-.tool-label.result{color:var(--green)}
-.tool-sub{color:var(--text-dim);font-size:9px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;cursor:pointer;
+  background:var(--panel);user-select:none;
+}
+.tc-row:hover{background:var(--border)}
+.tc-row-result{cursor:default}
+.tc-row-result:hover{background:var(--panel)}
+.tc-icon{font-size:13px;flex-shrink:0}
+.tc-name{color:var(--yellow);font-weight:500;flex-shrink:0}
+.tc-preview{
+  flex:1;color:var(--text-dim);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;font-size:10px;
+}
+.tc-chevron{color:var(--text-dim);font-size:9px;flex-shrink:0;margin-left:4px}
+.tc-detail{
+  display:none;border-top:1px solid var(--border);
+  background:var(--bg);
+}
+.tc-pre{
+  padding:8px 10px;font-family:var(--mono);font-size:10px;
+  color:var(--text-dim);white-space:pre-wrap;word-break:break-all;
+  max-height:200px;overflow-y:auto;
+}
+.tc-result{
+  padding:6px 10px 7px 32px;
+  font-size:10px;color:var(--green);border-top:1px solid var(--border);
+  background:rgba(52,211,153,.03);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 
 .info-msg{
   font-size:10px;color:var(--yellow);padding:5px 10px;
@@ -309,6 +367,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--m
 
 /* ─── Inspector ──────────────────────────────────── */
 .inspector{
+  width:380px;
+  flex-shrink:0;
   display:flex;flex-direction:column;background:var(--surface);overflow:hidden;
 }
 .inspector-header{

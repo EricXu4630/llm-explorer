@@ -38,9 +38,12 @@ _AGENTS_MD = pathlib.Path(__file__).parent.parent / "AGENTS.md"
 from fastapi import WebSocket
 from session_manager import get_container_id, set_container_id
 
+# Tool definitions verified against https://developers.openai.com/api/docs/guides/tools (2026-05-17)
 SERVER_TOOLS = {
-    "web_search": {"type": "web_search_preview"},
+    "web_search":       {"type": "web_search_preview"},
     "code_interpreter": {"type": "code_interpreter", "container": {"type": "auto"}},
+    "image_generation": {"type": "image_generation"},  # Uses gpt-image-2 server-side
+    # file_search requires vector_store_ids — skip if not provided
 }
 
 # Shell tool — hosted container with /mnt/data filesystem
@@ -49,11 +52,16 @@ SHELL_TOOL = {
     "environment": {"type": "hosted"},
 }
 
+# Models verified against https://developers.openai.com/api/docs/models/all (2026-05-17)
 MODELS = [
-    "gpt-4o",
-    "gpt-4o-mini",
-    "o3",
-    "gpt-4.1",
+    "gpt-5.5",        # Flagship 2026 · 1M ctx · computer use · all tools
+    "gpt-5.4",        # Affordable · coding + professional
+    "gpt-5.4-mini",   # Strongest mini · coding + subagents
+    "gpt-5.4-nano",   # Cheapest gpt-5.4 class
+    "gpt-5",          # Reasoning model
+    "gpt-4.1",        # Smartest non-reasoning
+    "gpt-4o",         # General purpose (legacy)
+    "o3",             # Reasoning · complex tasks
 ]
 
 

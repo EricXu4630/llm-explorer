@@ -88,15 +88,58 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td>Web Search</td><td class="c-native">✅ Native API</td><td class="c-native">✅ Native API</td><td class="c-native">✅ Native API</td></tr>
-            <tr><td>Code / Bash</td><td class="c-native">✅ Native (30d container)</td><td class="c-native">✅ Native (Shell)</td><td class="c-warn">⚠️ Harness workspace/</td></tr>
-            <tr><td>Filesystem</td><td class="c-native">✅ Container /mnt/data</td><td class="c-native">✅ /mnt/data</td><td class="c-warn">⚠️ Local workspace/</td></tr>
-            <tr><td>MCP Connector</td><td class="c-native">✅ Native API</td><td class="c-native">✅ Native API</td><td class="c-none">❌ Not supported</td></tr>
-            <tr><td>Memory Tool</td><td class="c-warn">⚠️ /memories/ on disk</td><td class="c-none">❌ None</td><td class="c-none">❌ None</td></tr>
-            <tr><td>Cross-session</td><td class="c-native">✅ container_id 30d + Files API ∞</td><td class="c-native">✅ Conversations API ∞</td><td class="c-warn">⚠️ Local disk only</td></tr>
-            <tr><td>Agent Skills</td><td class="c-native">✅ Native Skills API</td><td class="c-warn">⚠️ Prompt inject</td><td class="c-warn">⚠️ Prompt inject</td></tr>
-            <tr><td>Context Window</td><td>200K tokens</td><td>128K tokens</td><td class="c-native">1M+ tokens</td></tr>
-            <tr><td>AGENTS.md</td><td class="c-native">✅ System prompt</td><td class="c-native">✅ System prompt</td><td class="c-native">✅ System prompt</td></tr>
+            <tr><td>Web Search</td>
+              <td class="c-native">✅ server-side<br/><small>web_search_20260209</small></td>
+              <td class="c-native">✅ server-side<br/><small>web_search_preview</small></td>
+              <td class="c-native">✅ server-side<br/><small>Google Search grounding</small></td></tr>
+            <tr><td>Code / Bash</td>
+              <td class="c-native">✅ server-side<br/><small>code_execution_20250825 · bash+Python · 30d container</small></td>
+              <td class="c-native">✅ server-side<br/><small>code_interpreter (Python) · shell (bash /mnt/data)</small></td>
+              <td class="c-warn">⚠️ server Python stateless<br/><small>code_execution · harness bash workspace/</small></td></tr>
+            <tr><td>Web / URL Fetch</td>
+              <td class="c-native">✅ server-side<br/><small>web_fetch_20260209</small></td>
+              <td class="c-none">❌ not available</td>
+              <td class="c-native">✅ server-side<br/><small>url_context</small></td></tr>
+            <tr><td>Image Generation</td>
+              <td class="c-none">❌ not available</td>
+              <td class="c-native">✅ server-side<br/><small>type:image_generation</small></td>
+              <td class="c-none">❌ not via gen API<br/><small>(Imagen 4 via separate API)</small></td></tr>
+            <tr><td>Maps / Location</td>
+              <td class="c-none">❌ not available</td>
+              <td class="c-none">❌ not available</td>
+              <td class="c-native">✅ server-side<br/><small>google_maps</small></td></tr>
+            <tr><td>MCP Connector</td>
+              <td class="c-native">✅ Native API<br/><small>mcp-client-2025-11-20 · server-side</small></td>
+              <td class="c-native">✅ Native API<br/><small>type:mcp · server-side</small></td>
+              <td class="c-none">❌ No native MCP<br/><small>must implement client loop</small></td></tr>
+            <tr><td>Computer Use</td>
+              <td class="c-warn">⚠️ Client-side<br/><small>computer_20251124 (beta) · harness required</small></td>
+              <td class="c-warn">⚠️ Client-side<br/><small>type:computer · gpt-5.5/5.4 · harness required</small></td>
+              <td class="c-warn">⚠️ Special model<br/><small>gemini-2.5-computer-use-preview</small></td></tr>
+            <tr><td>Memory Tool</td>
+              <td class="c-warn">⚠️ Client-side<br/><small>memory_20250818 → /memories/ on disk</small></td>
+              <td class="c-none">❌ No native tool<br/><small>use conversation history</small></td>
+              <td class="c-none">❌ No native tool</td></tr>
+            <tr><td>Advisor Tool</td>
+              <td class="c-native">✅ server-side beta<br/><small>advisor_20260301 · Sonnet calls Opus mid-task</small></td>
+              <td class="c-none">❌ not available</td>
+              <td class="c-none">❌ not available</td></tr>
+            <tr><td>Agent Skills</td>
+              <td class="c-native">✅ Native Skills API<br/><small>skills-2025-10-02 · progressive disclosure</small></td>
+              <td class="c-warn">⚠️ System prompt inject</td>
+              <td class="c-warn">⚠️ System prompt inject</td></tr>
+            <tr><td>Cross-session</td>
+              <td class="c-native">✅ container_id (30d) + Files API (∞)</td>
+              <td class="c-native">✅ Conversations API (∞) + previous_response_id (30d)</td>
+              <td class="c-warn">⚠️ Local disk only<br/><small>Files API = 48h only</small></td></tr>
+            <tr><td>Context Window</td>
+              <td><b>1M tokens</b><br/><small>Opus 4.7 + Sonnet 4.6</small><br/>200K (Haiku 4.5)</td>
+              <td><b>1M tokens</b><br/><small>gpt-5.5</small><br/>128K (others)</td>
+              <td class="c-native"><b>1M tokens</b><br/><small>all 2.5 + 3 models</small></td></tr>
+            <tr><td>AGENTS.md</td>
+              <td class="c-native">✅ loaded as system prompt</td>
+              <td class="c-native">✅ loaded as system prompt</td>
+              <td class="c-native">✅ loaded as system_instruction</td></tr>
           </tbody>
         </table>
         <div class="cap-legend">
@@ -107,6 +150,9 @@
       </div>
     </div>
   </aside>
+
+  <!-- drag handle between sidebar and chat -->
+  <div class="resize-handle" id="rh-left" title="Drag to resize · Double-click to collapse"></div>
 
   <!-- ═══ CHAT ═══ -->
   <main class="chat-pane">
@@ -154,6 +200,9 @@
       </div>
     </div>
   </main>
+
+  <!-- drag handle between chat and inspector -->
+  <div class="resize-handle" id="rh-right" title="Drag to resize · Double-click to collapse"></div>
 
   <!-- ═══ INSPECTOR ═══ -->
   <div class="inspector">

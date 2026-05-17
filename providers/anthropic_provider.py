@@ -54,17 +54,31 @@ from memory_manager import (
 )
 from session_manager import get_container_id, set_container_id
 
+# Server-side tools — Anthropic executes; no client loop needed.
+# Type strings verified against https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference
 SERVER_TOOLS = {
     "web_search":    {"type": "web_search_20260209",    "name": "web_search"},
     "code_execution":{"type": "code_execution_20250825","name": "code_execution"},
     "web_fetch":     {"type": "web_fetch_20260209",     "name": "web_fetch"},
 }
-MEMORY_TOOL = {"type": "memory_20250818", "name": "memory"}
 
+# Client-side tools — harness must execute tool_use blocks.
+MEMORY_TOOL   = {"type": "memory_20250818",  "name": "memory"}
+BASH_TOOL     = {"type": "bash_20250124",    "name": "bash"}    # runs in harness workspace/
+
+# Advisor tool (beta server-side) — executor (Sonnet) consults advisor (Opus) mid-task.
+# Executor model must be Sonnet/Haiku; advisor must be Opus 4.7.
+# Beta header: advisor-tool-2026-03-01
+ADVISOR_TOOL  = {"type": "advisor_20260301", "name": "advisor", "model": "claude-opus-4-7"}
+ADVISOR_BETA  = "advisor-tool-2026-03-01"
+
+# Models verified against https://platform.claude.com/docs/en/about-claude/models/overview
 MODELS = [
-    "claude-sonnet-4-6",   # default — supports all server-side tools
-    "claude-opus-4-7",
-    "claude-haiku-4-5",    # ⚠️ does NOT support server-side tools
+    "claude-opus-4-7",    # Latest flagship, 1M ctx, best agentic coding
+    "claude-sonnet-4-6",  # Best speed/intelligence, 1M ctx
+    "claude-haiku-4-5",   # Fastest, 200K ctx ⚠️ no server-side tools
+    "claude-opus-4-6",
+    "claude-sonnet-4-5",
 ]
 
 # _20260209 tools use internal code execution — conflict with explicit code_execution
@@ -157,7 +171,9 @@ class AnthropicProvider:
         ws: WebSocket,
     ):
         use_code_exec = tools_config.get("code_execution", False)
-        use_memory = tools_config.get("memory", False)
+        use_memory    = tools_config.get("memory",    False)
+        use_bash_tool = tools_config.get("bash_tool", False)   # Anthropic bash_20250124 (client-side)
+        use_advisor   = tools_config.get("advisor",   False)   # advisor_20260301 (beta server-side)
         has_skills = bool(skills)
 
         # ── Resolve betas ──────────────────────────────────────────────────
@@ -168,6 +184,10 @@ class AnthropicProvider:
             betas.extend(["code-execution-2025-08-25", SKILLS_BETA])
         if use_memory:
             betas.append(FILES_BETA)
+        if use_advisor:
+            # advisor-tool-2026-03-01: executor (Sonnet/Haiku) can call Opus for strategic guidance
+            # Only valid when executor != Opus 4.7 (though Opus can advise itself too)
+            betas.append(ADVISOR_BETA)
 
         # ── Upload skills to native Skills API ─────────────────────────────
         # Each skill gets uploaded once (cached by content hash).
@@ -223,6 +243,15 @@ class AnthropicProvider:
 
         if use_memory:
             tools.append(MEMORY_TOOL)
+        if use_bash_tool:
+            # bash_20250124: client-side, harness runs commands in workspace/
+            tools.append(BASH_TOOL)
+        if use_advisor:
+            # advisor_20260301: server-side beta — executor consults Opus mid-task
+            # Executor must be Sonnet or Haiku; if model is Opus 4.7 it can still work.
+            tools.append(ADVISOR_TOOL)
+            await ws.send_json({"type": "info",
+                "message": "Advisor enabled: Sonnet can consult Opus mid-task for strategic guidance (beta)"})
 
         # ── MCP connector ───────────────────────────────────────────────────
         mcp_defs = []
@@ -281,7 +310,7 @@ class AnthropicProvider:
         await ws.send_json({"type": "api_request", "payload": params})
 
         try:
-            await self._run_loop(params, betas, use_memory, ws)
+            await self._run_loop(params, betas, use_memory, ws, use_bash_tool=use_bash_tool)
         except Exception as e:
             err_str = str(e)
             # Container expired — clear saved ID and retry without it
@@ -297,7 +326,8 @@ class AnthropicProvider:
             else:
                 await ws.send_json({"type": "error", "message": err_str})
 
-    async def _run_loop(self, params: dict, betas: list, use_memory: bool, ws: WebSocket):
+    async def _run_loop(self, params: dict, betas: list, use_memory: bool, ws: WebSocket,
+                        use_bash_tool: bool = False):
         """
         Agentic loop for Anthropic.
         - Server-side tools (web_search, code_execution, web_fetch): Anthropic handles internally.
@@ -382,11 +412,7 @@ class AnthropicProvider:
                             if block:
                                 btype = str(getattr(block, "type", "") or "")
                                 if btype in ("tool_use", "server_tool_use", "mcp_tool_use"):
-                                    await ws.send_json({
-                                        "type": "tool_call",
-                                        "tool": getattr(block, "name", btype),
-                                        "input": "...",
-                                    })
+                                    pass  # input is empty here; full emit happens after get_final_message()
                                 elif btype == "mcp_tool_result":
                                     await ws.send_json({
                                         "type": "tool_result",
@@ -435,6 +461,17 @@ class AnthropicProvider:
                     if name == "memory" and use_memory:
                         result = execute_memory_command(inp)
                         await ws.send_json({"type": "tool_result", "tool": "memory", "output": result[:200]})
+
+                    elif name == "bash" and use_bash_tool:
+                        # bash_20250124: execute in harness workspace/
+                        from workspace_executor import execute_bash
+                        if inp.get("restart"):
+                            result = "[bash session restarted]"
+                        else:
+                            cmd = inp.get("command", "")
+                            result = execute_bash(cmd)
+                        await ws.send_json({"type": "tool_result", "tool": "bash", "output": result[:300]})
+
                     else:
                         result = json.dumps({"error": f"Unhandled client tool: {name}"})
                     tool_results.append({

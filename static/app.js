@@ -20,38 +20,76 @@ const state = {
 };
 
 // ─── Provider Config ─────────────────────────────────
+// Verified against live provider docs, 2026-05-17
 const PROVIDERS = {
   anthropic: {
-    models: ["claude-sonnet-4-6", "claude-opus-4-7", "claude-haiku-4-5"],
-    tools: [
-      { id:"web_search",    label:"Web Search",     icon:"🔍", note:"native", cls:"native" },
-      { id:"code_execution",label:"Code Execution", icon:"💻", note:"native (30d container)", cls:"native" },
-      { id:"web_fetch",     label:"Web Fetch",      icon:"🌐", note:"native", cls:"native" },
-      { id:"memory",        label:"Memory Tool",    icon:"🧠", note:"harness /memories/", cls:"harness" },
+    // https://platform.claude.com/docs/en/about-claude/models/overview
+    models: [
+      "claude-opus-4-7",        // Latest flagship — 1M ctx, best agentic coding
+      "claude-sonnet-4-6",      // Best speed/intelligence — 1M ctx
+      "claude-haiku-4-5",       // Fastest — 200K ctx
+      "claude-opus-4-6",        // Previous Opus
+      "claude-sonnet-4-5",      // Previous Sonnet
     ],
-    mcpNote: "✅ Native MCP — Anthropic calls MCP servers server-side (public HTTPS required)",
+    // https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-reference
+    tools: [
+      { id:"web_search",    label:"Web Search",         icon:"🔍", note:"server-side · web_search_20260209",    cls:"native"  },
+      { id:"code_execution",label:"Code Execution",     icon:"💻", note:"server-side · bash+Python · 30d container", cls:"native" },
+      { id:"web_fetch",     label:"Web Fetch",          icon:"🌐", note:"server-side · web_fetch_20260209",     cls:"native"  },
+      { id:"memory",        label:"Memory /memories/",  icon:"🧠", note:"client-side ← harness · memory_20250818", cls:"harness" },
+      { id:"bash_tool",     label:"Bash Tool",          icon:"🖥️", note:"client-side ← harness · bash_20250124",  cls:"harness" },
+      { id:"advisor",       label:"Advisor",            icon:"🎯", note:"server-side beta · Sonnet consults Opus mid-task", cls:"native" },
+    ],
+    mcpNote: "✅ Native API MCP (mcp-client-2025-11-20) — Anthropic calls MCP servers server-side. Needs public HTTPS.",
     defaultTools: ["web_search"],
+    contextInfo: "1M tokens (Opus/Sonnet) · 200K (Haiku)",
   },
   openai: {
-    models: ["gpt-4o", "gpt-4o-mini", "o3", "gpt-4.1"],
-    tools: [
-      { id:"web_search",      label:"Web Search",      icon:"🔍", note:"native", cls:"native" },
-      { id:"code_interpreter",label:"Code Interpreter",icon:"💻", note:"native (hosted)", cls:"native" },
-      { id:"shell",           label:"Shell /mnt/data", icon:"🖥️", note:"native (bash container)", cls:"native" },
+    // https://developers.openai.com/api/docs/models/all
+    models: [
+      "gpt-5.5",        // Flagship 2026 · 1M ctx · computer use · all tools
+      "gpt-5.4",        // Affordable for coding + professional work
+      "gpt-5.4-mini",   // Strongest mini · coding + subagents
+      "gpt-5.4-nano",   // Cheapest gpt-5.4 class · high-volume
+      "gpt-5",          // Reasoning model
+      "gpt-4.1",        // Smartest non-reasoning model
+      "gpt-4o",         // General purpose (legacy)
+      "o3",             // Reasoning · complex tasks
     ],
-    mcpNote: "✅ Native MCP — OpenAI calls MCP servers server-side (public HTTPS required)",
+    // https://developers.openai.com/api/docs/guides/tools
+    tools: [
+      { id:"web_search",       label:"Web Search",       icon:"🔍", note:"server-side · web_search_preview",     cls:"native"  },
+      { id:"code_interpreter", label:"Code Interpreter",  icon:"💻", note:"server-side hosted Python",           cls:"native"  },
+      { id:"shell",            label:"Shell /mnt/data",   icon:"🖥️", note:"server-side hosted bash + filesystem", cls:"native"  },
+      { id:"image_generation", label:"Image Generation",  icon:"🎨", note:"server-side · type:image_generation",  cls:"native"  },
+      { id:"file_search",      label:"File Search",       icon:"📚", note:"server-side RAG · needs vector_store_ids", cls:"native" },
+      { id:"computer",         label:"Computer Use",      icon:"🖱️", note:"gpt-5.5/5.4 · client harness required", cls:"harness" },
+    ],
+    mcpNote: "✅ Native API MCP (type:mcp) — OpenAI calls MCP servers server-side. Needs public HTTPS.",
     defaultTools: ["web_search"],
+    contextInfo: "1M tokens (gpt-5.5) · 128K (others)",
   },
   gemini: {
-    models: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
-    tools: [
-      { id:"google_search", label:"Google Search",  icon:"🔍", note:"native (grounded)", cls:"native" },
-      { id:"code_execution",label:"Code Execution", icon:"💻", note:"native (stateless)", cls:"native" },
-      { id:"url_context",   label:"URL Context",    icon:"🌐", note:"native", cls:"native" },
-      { id:"bash",          label:"Bash",           icon:"🖥️", note:"harness workspace/", cls:"harness" },
+    // https://ai.google.dev/gemini-api/docs/models
+    models: [
+      "gemini-2.5-pro",              // Most advanced · complex reasoning
+      "gemini-2.5-flash",            // Best price-performance · reasoning
+      "gemini-2.5-flash-lite",       // Fastest + cheapest 2.5
+      "gemini-3.1-pro-preview",      // Gemini 3.1 Pro Preview (NEW)
+      "gemini-3-flash-preview",      // Gemini 3 Flash Preview (NEW)
+      "gemini-2.0-flash",            // Stable 2.0
     ],
-    mcpNote: "❌ No native MCP — Gemini has no API-level MCP connector. MCP servers are ignored.",
+    // https://ai.google.dev/gemini-api/docs/tools
+    tools: [
+      { id:"google_search",  label:"Google Search",    icon:"🔍", note:"server-side grounding · all models",    cls:"native"  },
+      { id:"code_execution", label:"Code Execution",   icon:"💻", note:"server-side Python · 30s · stateless", cls:"native"  },
+      { id:"url_context",    label:"URL Context",      icon:"🌐", note:"server-side URL reader",               cls:"native"  },
+      { id:"google_maps",    label:"Google Maps",      icon:"🗺️", note:"server-side location + places",        cls:"native"  },
+      { id:"bash",           label:"Bash (workspace/)",icon:"🖥️", note:"client-side ← harness · permanent workspace/", cls:"harness" },
+    ],
+    mcpNote: "❌ No native MCP — Gemini has no API-level MCP connector. MCP servers are ignored. Use Anthropic/OpenAI for native MCP.",
     defaultTools: ["google_search"],
+    contextInfo: "1M tokens (all 2.5/3 models)",
   },
 };
 
@@ -304,7 +342,9 @@ function sendMessage() {
   document.getElementById("send-btn").disabled = true;
 
   state.streamText = "";
-  state.streamEl = appendAssistantBubble(true);
+  state.streamEl = null;  // Created lazily on first token — so tool calls appear above it
+
+  scrollBottom(true);  // Scroll to show the user's message
 
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
     appendError("WebSocket not connected.");
@@ -332,22 +372,29 @@ function handleEvent(evt) {
       addInspEntry("response", evt.payload, "API Response");
       break;
     case "token":
-      if (state.streamEl) {
-        state.streamText += evt.content;
+      // Create the assistant bubble on the FIRST token — after any tool call
+      // divs that arrived earlier, so tool calls appear above the answer.
+      if (!state.streamEl) {
+        state.streamEl = appendAssistantBubble(true);
+      }
+      state.streamText += evt.content;
+      {
         const bubble = state.streamEl.querySelector(".msg-bubble");
         const cur = bubble.querySelector(".cursor");
         if (cur) bubble.removeChild(cur);
         bubble.textContent = state.streamText;
         bubble.appendChild(mkCursor());
-        scrollBottom();
+        scrollBottom();  // Gentle: only scrolls if user is near bottom
       }
       break;
     case "tool_call":
       appendToolEvent("call", evt.tool, evt.input);
       addInspEntry("tool", { tool: evt.tool, input: evt.input }, `Tool: ${evt.tool}`);
+      scrollBottom();
       break;
     case "tool_result":
       appendToolEvent("result", evt.tool, evt.output);
+      scrollBottom();
       break;
     case "info":
       appendInfo(evt.message);
@@ -360,6 +407,10 @@ function handleEvent(evt) {
       break;
     case "done": {
       const final = evt.message || state.streamText;
+      if (!state.streamEl && final) {
+        // No tokens streamed (e.g. non-streaming path emitted done without tokens)
+        state.streamEl = appendAssistantBubble(false);
+      }
       if (state.streamEl) {
         const bubble = state.streamEl.querySelector(".msg-bubble");
         const cur = bubble.querySelector(".cursor");
@@ -407,26 +458,109 @@ function appendAssistantBubble(streaming) {
   return el;
 }
 
+// ── Tool event helpers ────────────────────────────────
+
+const TOOL_ICONS = {
+  web_search:"🔍", web_search_preview:"🔍",
+  code_execution:"💻", code_interpreter:"💻", bash_code_execution:"💻",
+  bash:"🖥️", shell:"🖥️",
+  web_fetch:"🌐", url_context:"🌐", read_url:"🌐",
+  memory:"🧠",
+  mcp:"🔌", ask_question:"🔌", read_wiki:"🔌",
+  google_search:"🔍",
+};
+
+function toolIcon(name) {
+  const key = Object.keys(TOOL_ICONS).find(k => name.toLowerCase().includes(k));
+  return key ? TOOL_ICONS[key] : "🛠️";
+}
+
+// Extract the most meaningful single-line preview from tool input
+function toolPreview(name, data) {
+  if (!data || data === "...") return "";
+  if (typeof data === "string") return data.slice(0, 100);
+  const d = data;
+  // Most useful field first, by tool type
+  if (d.query)   return `"${String(d.query).slice(0,100)}"`;
+  if (d.url)     return String(d.url).replace(/^https?:\/\//, "").slice(0, 100);
+  if (d.command && d.path) return `${d.command}  ${d.path}`;
+  if (d.command) return d.command;
+  if (d.code)    return String(d.code).split("\n")[0].slice(0, 100);
+  if (d.input)   return String(d.input).slice(0, 100);
+  if (d.question) return `"${String(d.question).slice(0,100)}"`;
+  if (d.expression) return d.expression;
+  // Fallback: first non-empty string value
+  const first = Object.values(d).find(v => v && typeof v === "string");
+  return first ? first.slice(0, 100) : "";
+}
+
+// Pretty-print tool input for expanded view
+function toolDetail(data) {
+  if (!data || data === "...") return "";
+  try { return JSON.stringify(data, null, 2); } catch { return String(data); }
+}
+
+let toolCardSeq = 0;
+
 function appendToolEvent(kind, toolName, data) {
-  const icons = {
-    web_search:"🔍", web_search_preview:"🔍", web_search_call:"🔍",
-    code_execution:"💻", code_interpreter:"💻", bash_code_execution:"💻",
-    bash:"🖥️", shell:"🖥️",
-    web_fetch:"🌐", url_context:"🌐",
-    memory:"🧠", mcp:"🔌",
-    google_search:"🔍",
-  };
-  const icon = Object.entries(icons).find(([k]) => toolName.includes(k))?.[1] || "🛠️";
-  const dataStr = typeof data === "object" ? JSON.stringify(data).slice(0,120) : String(data||"").slice(0,120);
-  const el = document.createElement("div");
-  el.className = "tool-event";
+  const msgs = document.getElementById("messages");
+
   if (kind === "call") {
-    el.innerHTML = `<div class="tool-icon-lg">${icon}</div><div class="tool-body"><div class="tool-label">${esc(toolName)}</div><div class="tool-sub">${esc(dataStr)}</div></div>`;
+    const id = `tc${++toolCardSeq}`;
+    const icon = toolIcon(toolName);
+    const preview = toolPreview(toolName, data);
+    const detail  = toolDetail(data);
+
+    const el = document.createElement("div");
+    el.className = "tool-card";
+    el.dataset.tool = toolName;
+    el.dataset.id = id;
+    el.innerHTML = `
+      <div class="tc-row" onclick="tcToggle('${id}')">
+        <span class="tc-icon">${icon}</span>
+        <span class="tc-name">${esc(toolName)}</span>
+        ${preview ? `<span class="tc-preview">${esc(preview)}</span>` : ""}
+        <span class="tc-chevron">▸</span>
+      </div>
+      <div class="tc-detail" id="${id}">
+        <pre class="tc-pre">${esc(detail)}</pre>
+      </div>`;
+    msgs.appendChild(el);
+
   } else {
-    el.innerHTML = `<div class="tool-icon-lg">✓</div><div class="tool-body"><div class="tool-label result">${esc(toolName)} result</div><div class="tool-sub">${esc(dataStr)}</div></div>`;
+    // Result: attach to the most recent matching call card, or append standalone
+    const preview = typeof data === "string"
+      ? data.slice(0, 120)
+      : (data?.output ?? data?.content ?? JSON.stringify(data)).toString().slice(0, 120);
+
+    // Find last call card with matching tool name
+    const cards = msgs.querySelectorAll(`.tool-card[data-tool="${CSS.escape(toolName)}"]`);
+    const card = cards[cards.length - 1];
+    if (card) {
+      const res = document.createElement("div");
+      res.className = "tc-result";
+      res.textContent = preview;
+      card.appendChild(res);
+    } else {
+      const el = document.createElement("div");
+      el.className = "tool-card";
+      el.innerHTML = `<div class="tc-row tc-row-result"><span class="tc-icon">✓</span><span class="tc-name">${esc(toolName)}</span><span class="tc-preview">${esc(preview)}</span></div>`;
+      msgs.appendChild(el);
+    }
   }
-  document.getElementById("messages").appendChild(el);
   scrollBottom();
+}
+
+function tcToggle(id) {
+  const detail = document.getElementById(id);
+  if (!detail) return;
+  const open = detail.style.display === "block";
+  detail.style.display = open ? "none" : "block";
+  const row = detail.previousElementSibling;
+  if (row) {
+    const ch = row.querySelector(".tc-chevron");
+    if (ch) ch.textContent = open ? "▸" : "▾";
+  }
 }
 
 function appendInfo(msg) {
@@ -451,9 +585,12 @@ function mkCursor() {
   return s;
 }
 
-function scrollBottom() {
+function scrollBottom(force = false) {
   const m = document.getElementById("messages");
-  m.scrollTop = m.scrollHeight;
+  const nearBottom = m.scrollHeight - m.scrollTop - m.clientHeight < 120;
+  if (force || nearBottom) {
+    m.scrollTop = m.scrollHeight;
+  }
 }
 
 // ─── Inspector ────────────────────────────────────────
@@ -514,3 +651,75 @@ function highlight(obj) {
 function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+
+// ─── Resizable Panels ────────────────────────────────
+// Drag the handle divs to resize sidebar or inspector.
+// Double-click a handle to collapse / restore that panel.
+// Sizes persist in localStorage.
+
+const MIN_W = 160;
+
+function loadSizes() {
+  const s = JSON.parse(localStorage.getItem("panels") || "{}");
+  return { left: s.left||280, right: s.right||380,
+           lc: s.lc||false, rc: s.rc||false };
+}
+function storeSizes(s) {
+  localStorage.setItem("panels", JSON.stringify(s));
+}
+function applySizes(s) {
+  const sidebar   = document.querySelector(".sidebar");
+  const inspector = document.querySelector(".inspector");
+  sidebar.style.width   = (s.lc ? 0 : s.left)  + "px";
+  inspector.style.width = (s.rc ? 0 : s.right) + "px";
+  // Keep content from peeking out when collapsed
+  sidebar.style.minWidth   = "0";
+  inspector.style.minWidth = "0";
+}
+
+function initResize() {
+  applySizes(loadSizes());
+  makeResizable("rh-left",  "left");
+  makeResizable("rh-right", "right");
+}
+
+function makeResizable(id, side) {
+  const handle = document.getElementById(id);
+  if (!handle) return;
+
+  handle.addEventListener("mousedown", e => {
+    if (e.button !== 0) return;
+    const s = loadSizes();
+    if (side === "left" && s.lc) return;
+    if (side === "right" && s.rc) return;
+    e.preventDefault();
+    handle.classList.add("dragging");
+    const x0     = e.clientX;
+    const size0  = side === "left" ? s.left : s.right;
+
+    const onMove = mv => {
+      const delta  = side === "left" ? mv.clientX - x0 : x0 - mv.clientX;
+      const fresh  = loadSizes();
+      fresh[side]  = Math.max(MIN_W, size0 + delta);
+      storeSizes(fresh);
+      applySizes(fresh);
+    };
+    const onUp = () => {
+      handle.classList.remove("dragging");
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup",   onUp);
+  });
+
+  handle.addEventListener("dblclick", () => {
+    const s = loadSizes();
+    if (side === "left")  s.lc = !s.lc;
+    else                  s.rc = !s.rc;
+    storeSizes(s);
+    applySizes(s);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initResize);

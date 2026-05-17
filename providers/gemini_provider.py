@@ -39,10 +39,14 @@ from fastapi import WebSocket
 
 from workspace_executor import execute_bash, workspace_listing, WORKSPACE
 
+# Models verified against https://ai.google.dev/gemini-api/docs/models (2026-05-17)
 MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.0-flash",
+    "gemini-2.5-pro",              # Most advanced · complex reasoning
+    "gemini-2.5-flash",            # Best price-performance · reasoning
+    "gemini-2.5-flash-lite",       # Fastest + cheapest 2.5
+    "gemini-3.1-pro-preview",      # Gemini 3.1 Pro Preview (NEW 2026)
+    "gemini-3-flash-preview",      # Gemini 3 Flash Preview (NEW 2026)
+    "gemini-2.0-flash",            # Stable 2.0
 ]
 
 # Bash tool declaration — harness-side filesystem for Gemini
@@ -171,6 +175,7 @@ class GeminiProvider:
         contents = _to_contents(messages)
 
         # Native server-side tools
+        # Tool definitions verified against https://ai.google.dev/gemini-api/docs/tools (2026-05-17)
         tool_objs = []
         if tools_config.get("google_search"):
             tool_objs.append(types.Tool(google_search=types.GoogleSearch()))
@@ -178,6 +183,13 @@ class GeminiProvider:
             tool_objs.append(types.Tool(code_execution=types.ToolCodeExecution()))
         if tools_config.get("url_context"):
             tool_objs.append(types.Tool(url_context=types.UrlContext()))
+        if tools_config.get("google_maps"):
+            try:
+                tool_objs.append(types.Tool(google_maps=types.ToolGoogleMaps()))
+            except AttributeError:
+                await ws.send_json({"type": "info",
+                    "message": "google_maps: ToolGoogleMaps not in this SDK version — skipped"})
+
 
         # Client-side bash tool (harness executes)
         bash_function_tool = None
