@@ -609,27 +609,46 @@ function scrollBottom(force = false) {
 
 // ─── Inspector ────────────────────────────────────────
 let inspCount = 0;
+
 function addInspEntry(kind, payload, label) {
   const empty = document.querySelector(".inspector-empty");
   if (empty) empty.remove();
 
   const id = `insp-${++inspCount}`;
+  const rawId = `raw-${id}`;
   const ts = new Date().toLocaleTimeString();
+
   const block = document.createElement("div");
   block.className = "insp-block";
   block.id = id;
-  // Auto-open first 2 entries
-  if (inspCount <= 2) block.classList.add("open");
+
+  let summary = "";
+  if (kind === "request")  summary = buildRequestSummary(payload);
+  if (kind === "response") summary = buildResponseSummary(payload);
+  if (kind === "tool")     summary = buildToolSummary(payload);
+  if (kind === "error")    summary = `<div class="insp-err">${esc(payload?.message || String(payload))}</div>`;
+
+  const dirIcon = kind === "request" ? "📤" : kind === "response" ? "📥" : kind === "error" ? "⚠️" : "🔧";
+  const dirLabel = kind === "request" ? `Sent to ${state.provider}`
+                 : kind === "response" ? `Received from ${state.provider}`
+                 : kind === "error" ? "Error"
+                 : `Tool · ${payload?.tool || label}`;
 
   block.innerHTML = `
     <div class="insp-header" onclick="toggleInsp('${id}')">
-      <span class="insp-tag ${kind}">${kind.toUpperCase()}</span>
-      <span class="insp-meta">${esc(label)} · ${ts}</span>
+      <span class="insp-dir">${dirIcon} ${dirLabel}</span>
+      <span class="insp-ts">${ts}</span>
       <span class="insp-toggle">▾</span>
     </div>
     <div class="insp-body">
-      <div class="json-viewer">${highlight(payload)}</div>
+      ${summary}
+      <div class="insp-raw-toggle" onclick="toggleRaw('${rawId}')">Raw JSON ▸</div>
+      <div class="insp-raw" id="${rawId}">
+        <div class="json-viewer">${highlight(payload)}</div>
+      </div>
     </div>`;
+
+  if (inspCount <= 2) block.classList.add("open");
 
   const body = document.getElementById("inspector-turns");
   body.appendChild(block);
@@ -640,10 +659,175 @@ function toggleInsp(id) {
   document.getElementById(id).classList.toggle("open");
 }
 
+function toggleRaw(id) {
+  const el = document.getElementById(id);
+  const toggle = el.previousElementSibling;
+  const open = el.style.display === "block";
+  el.style.display = open ? "none" : "block";
+  toggle.textContent = open ? "Raw JSON ▸" : "Raw JSON ▾";
+}
+
 function clearInspector() {
   document.getElementById("inspector-turns").innerHTML =
-    `<div class="inspector-empty">API payloads appear here as you chat.</div>`;
+    `<div class="inspector-empty">Each API call will be explained here — what was sent, what came back.</div>`;
   inspCount = 0;
+}
+
+// ── Request summary ───────────────────────────────────
+function buildRequestSummary(p) {
+  if (!p) return "";
+  const rows = [];
+
+  // Model
+  if (p.model) rows.push(inRow("Model", `<strong>${esc(p.model)}</strong>`));
+
+  // System prompt (AGENTS.md)
+  const sys = p.system || p.instructions || (p.input?.find?.(m => m.role === "system")?.content);
+  if (sys) {
+    const preview = String(sys).slice(0, 120).replace(/\n/g, " ");
+    rows.push(inRow("System prompt",
+      `<span class="insp-dim">From AGENTS.md — defines the agent's role and rules</span>
+       <div class="insp-preview">"${esc(preview)}${sys.length > 120 ? "…" : ""}"</div>`));
+  }
+
+  // Conversation
+  const msgs = p.messages || p.input?.filter?.(m => m.role !== "system");
+  if (msgs?.length) {
+    const last = msgs[msgs.length - 1];
+    const lastContent = typeof last?.content === "string"
+      ? last.content
+      : last?.content?.[0]?.text || last?.content?.[0]?.content || "";
+    rows.push(inRow("Conversation",
+      `<span class="insp-dim">${msgs.length} message${msgs.length > 1 ? "s" : ""} — the full chat history is sent every time</span>
+       ${lastContent ? `<div class="insp-preview">"${esc(String(lastContent).slice(0, 100))}${String(lastContent).length > 100 ? "…" : ""}"</div>` : ""}`));
+  }
+
+  // Tools
+  const tools = p.tools;
+  if (tools?.length) {
+    const toolList = tools.map(t => {
+      const name = t.name || t.type || "tool";
+      const isServer = ["web_search_20260209","web_fetch_20260209","code_execution_20250825",
+                        "web_search_preview","image_generation","code_interpreter",
+                        "google_search","code_execution","url_context","google_maps",
+                        "advisor_20260301","mcp_toolset","mcp","shell"].some(k => String(t.type||"").includes(k) || name.includes(k));
+      const tag = isServer ? `<span class="tag-api-s">API executes</span>` : `<span class="tag-harness-s">harness executes</span>`;
+      const icon = toolIcon(name);
+      return `<span class="insp-tool">${icon} ${esc(name)} ${tag}</span>`;
+    });
+    rows.push(inRow("Tools enabled", toolList.join(" ")));
+  }
+
+  // MCP servers
+  const mcps = p.mcp_servers;
+  if (mcps?.length) {
+    rows.push(inRow("MCP servers",
+      mcps.map(m => `<span class="insp-tool">🔌 ${esc(m.name)} <span class="insp-dim">${esc(m.url)}</span>
+        <span class="tag-api-s">API calls this server</span></span>`).join(" ") +
+      `<div class="insp-dim" style="margin-top:4px">These URLs are sent to ${state.provider}, which calls them on your behalf — your harness makes no request to them.</div>`));
+  }
+
+  // Skills (container.skills or shell.environment.skills)
+  const skillList = p.container?.skills || tools?.flatMap?.(t => t.environment?.skills || []);
+  if (skillList?.length) {
+    rows.push(inRow("Skills",
+      skillList.map(s => {
+        const sid = s.skill_id || "(id)";
+        const stype = s.type === "anthropic" ? "Anthropic built-in" : "your custom skill";
+        return `<span class="insp-tool">🧠 ${esc(sid.slice(0,20))}… <span class="insp-dim">(${stype})</span></span>`;
+      }).join(" ") +
+      `<div class="insp-dim" style="margin-top:4px">Only the skill ID is sent — the SKILL.md content stays on ${state.provider}'s servers, loaded on demand.</div>`));
+  }
+
+  // Container (reusing)
+  if (p.container?.id || typeof p.container === "string") {
+    const cid = p.container?.id || p.container;
+    rows.push(inRow("Container",
+      `<span class="insp-tool">📦 ${esc(String(cid).slice(0,24))}…</span>
+       <div class="insp-dim" style="margin-top:4px">Reusing a saved workspace — any files you created previously are still there (30-day window).</div>`));
+  }
+
+  // Beta headers
+  if (p.betas?.length) {
+    rows.push(inRow("Beta features", p.betas.map(b => `<code>${esc(b)}</code>`).join(" ")));
+  }
+
+  return `<div class="insp-summary">${rows.join("")}</div>`;
+}
+
+// ── Response summary ──────────────────────────────────
+function buildResponseSummary(p) {
+  if (!p) return "";
+  const rows = [];
+
+  // Stop reason
+  const stop = p.stop_reason || p.status || (p.candidates?.[0]?.finish_reason);
+  if (stop) {
+    const labels = {
+      end_turn:    "✅ Finished — AI completed its response",
+      tool_use:    "🔧 Paused to use a tool — will continue after",
+      pause_turn:  "⏸️ Long task paused — server will continue automatically",
+      max_tokens:  "📏 Hit token limit",
+      completed:   "✅ Finished",
+      STOP:        "✅ Finished",
+    };
+    rows.push(inRow("Status", labels[stop] || `<code>${esc(String(stop))}</code>`));
+  }
+
+  // Token usage
+  const usage = p.usage || p.usage_metadata;
+  if (usage) {
+    const inp = usage.input_tokens || usage.prompt_token_count || 0;
+    const out = usage.output_tokens || usage.candidates_token_count || 0;
+    rows.push(inRow("Tokens used",
+      `<strong>${inp.toLocaleString()}</strong> sent → <strong>${out.toLocaleString()}</strong> received
+       <span class="insp-dim"> (tokens ≈ words; you pay per token)</span>`));
+  }
+
+  // Container ID returned
+  const ctr = p.container;
+  if (ctr?.id) {
+    rows.push(inRow("Container saved",
+      `<span class="insp-tool">📦 ${esc(ctr.id.slice(0,24))}…</span>
+       <div class="insp-dim" style="margin-top:4px">This ID is saved locally. Next call will pass it back so the AI finds its files.</div>`));
+  }
+
+  // Content blocks summary
+  const content = p.content || p.output;
+  if (content?.length) {
+    const types = content.map(b => b.type || b.role || "?");
+    const summary = [...new Set(types)].map(t => {
+      const friendly = {
+        text: "Text reply", message: "Text reply",
+        tool_use: "Tool call", server_tool_use: "Tool call (server)",
+        web_search_tool_result: "Search result", code_execution_tool_result: "Code output",
+        bash_code_execution_tool_result: "Bash output", web_fetch_tool_result: "Fetched URL",
+        image_generation_call: "Generated image",
+        mcp_tool_use: "MCP tool call", mcp_tool_result: "MCP result",
+        advisor_tool_result: "Advisor guidance",
+      };
+      return friendly[t] || t;
+    });
+    rows.push(inRow("Response contains", summary.join(" · ")));
+  }
+
+  return `<div class="insp-summary">${rows.join("")}</div>`;
+}
+
+// ── Tool event summary ────────────────────────────────
+function buildToolSummary(p) {
+  if (!p) return "";
+  const tool = p.tool || "";
+  const input = p.input;
+  const preview = toolPreview(tool, input);
+  return `<div class="insp-summary">
+    ${inRow("Tool", `<span class="insp-tool">${toolIcon(tool)} <strong>${esc(tool)}</strong></span>`)}
+    ${preview ? inRow("Input", `<span class="insp-preview">${esc(preview)}</span>`) : ""}
+  </div>`;
+}
+
+function inRow(label, value) {
+  return `<div class="insp-row"><div class="insp-row-label">${label}</div><div class="insp-row-value">${value}</div></div>`;
 }
 
 // ─── JSON Highlight ───────────────────────────────────
