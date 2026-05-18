@@ -60,11 +60,21 @@ def _skill_to_zip(skill: dict) -> bytes:
         zf.writestr(f"{name}/SKILL.md", skill_md)
     return buf.getvalue()
 
-async def upload_skill_openai(client: AsyncOpenAI, skill: dict) -> str:
+def _skill_cache_key(skill: dict) -> str:
+    return hashlib.sha1(f"{skill['name']}{skill['content'][:100]}".encode()).hexdigest()[:12]
+
+def _bust_skill_cache(skill: dict):
+    cache = _load_skill_cache()
+    key = _skill_cache_key(skill)
+    if key in cache:
+        del cache[key]
+        _save_skill_cache(cache)
+
+async def upload_skill_openai(client: AsyncOpenAI, skill: dict, force: bool = False) -> str:
     """Upload a skill to OpenAI Skills API. Returns skill_id (cached)."""
     cache = _load_skill_cache()
-    key = hashlib.sha1(f"{skill['name']}{skill['content'][:100]}".encode()).hexdigest()[:12]
-    if key in cache:
+    key = _skill_cache_key(skill)
+    if not force and key in cache:
         return cache[key]
     name = skill["name"].lower().replace(" ", "-")
     zip_bytes = _skill_to_zip(skill)
