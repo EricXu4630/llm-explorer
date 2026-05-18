@@ -80,6 +80,29 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:var(--r
 
 <div class="page">
 
+  <!-- ── HARNESS SIZE ── -->
+  <section>
+    <h2>Harness size</h2>
+    <table>
+      <thead><tr><th>File</th><th>Lines</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>providers/anthropic_provider.py</td><td class="g">~360</td><td class="d">Anthropic Messages API, streaming, server tools, memory/bash client loop</td></tr>
+        <tr><td>providers/openai_provider.py</td><td class="g">~370</td><td class="d">OpenAI Responses API, streaming, shell/skills, image output</td></tr>
+        <tr><td>providers/gemini_provider.py</td><td class="g">~345</td><td class="d">Gemini GenAI SDK, function-calling loop for bash, grounding</td></tr>
+        <tr><td>workspace_executor.py</td><td class="d">~300</td><td class="d">Bash sandbox for Gemini — real bash or Python emulator fallback</td></tr>
+        <tr><td>memory_manager.py</td><td class="d">~250</td><td class="d">Filesystem commands for model memory tool (view, create, edit, delete)</td></tr>
+        <tr><td>mcp_client.py</td><td class="d">~200</td><td class="d">Streamable HTTP MCP client — initialize handshake, list tools, call tool</td></tr>
+        <tr><td>main.py + session_manager.py</td><td class="d">~180</td><td class="d">FastAPI app, WebSocket router, session/container ID persistence</td></tr>
+        <tr><td>skills_manager.py + skills.py</td><td class="d">~80</td><td class="d">Upload SKILL.md zips, cache skill_ids, load from GitHub URL</td></tr>
+        <tr><td style="color:var(--bright);font-weight:600">Python total</td><td style="color:var(--bright);font-weight:600">1,887</td><td class="d"></td></tr>
+        <tr><td>static/app.js</td><td class="d">854</td><td class="d">WebSocket client, conversation state, tool cards, inspector, resize panels</td></tr>
+        <tr><td>static/style.css</td><td class="d">515</td><td class="d">Layout, panels, tool cards, inspector entries</td></tr>
+        <tr><td>static/index.html</td><td class="d">231</td><td class="d">Shell HTML — sidebar, chat pane, inspector, memory drawer</td></tr>
+        <tr><td style="color:var(--bright);font-weight:600">Total</td><td style="color:var(--bright);font-weight:600">~3,487</td><td class="d">Everything. The LLM APIs handle the rest.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
   <!-- ── HARNESS vs API ── -->
   <section>
     <h2>What the harness does vs. what the API does</h2>
