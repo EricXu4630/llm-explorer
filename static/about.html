@@ -82,23 +82,46 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:var(--r
 
   <!-- ── HARNESS SIZE ── -->
   <section>
-    <h2>Harness size</h2>
+    <h2>Harness size — ~3,500 lines total</h2>
+    <p style="font-size:10px;color:var(--dim);margin-bottom:12px">
+      The harness is intentionally thin. Web search, code execution, URL fetch, image generation, MCP calls, and Skills
+      are all delegated to the provider APIs — the harness just configures and forwards them.
+      The only code the harness <em style="color:var(--yellow)">executes itself</em> is memory writes, bash commands (Gemini only), and conversation history management.
+    </p>
     <table>
-      <thead><tr><th>File</th><th>Lines</th><th>What it does</th></tr></thead>
+      <thead><tr><th>File</th><th>Lines</th><th>Role</th><th>Executes anything?</th></tr></thead>
       <tbody>
-        <tr><td>providers/anthropic_provider.py</td><td class="g">~360</td><td class="d">Anthropic Messages API, streaming, server tools, memory/bash client loop</td></tr>
-        <tr><td>providers/openai_provider.py</td><td class="g">~370</td><td class="d">OpenAI Responses API, streaming, shell/skills, image output</td></tr>
-        <tr><td>providers/gemini_provider.py</td><td class="g">~345</td><td class="d">Gemini GenAI SDK, function-calling loop for bash, grounding</td></tr>
-        <tr><td>workspace_executor.py</td><td class="d">~300</td><td class="d">Bash sandbox for Gemini — real bash or Python emulator fallback</td></tr>
-        <tr><td>memory_manager.py</td><td class="d">~250</td><td class="d">Filesystem commands for model memory tool (view, create, edit, delete)</td></tr>
-        <tr><td>mcp_client.py</td><td class="d">~200</td><td class="d">Streamable HTTP MCP client — initialize handshake, list tools, call tool</td></tr>
-        <tr><td>main.py + session_manager.py</td><td class="d">~180</td><td class="d">FastAPI app, WebSocket router, session/container ID persistence</td></tr>
-        <tr><td>skills_manager.py + skills.py</td><td class="d">~80</td><td class="d">Upload SKILL.md zips, cache skill_ids, load from GitHub URL</td></tr>
-        <tr><td style="color:var(--bright);font-weight:600">Python total</td><td style="color:var(--bright);font-weight:600">1,887</td><td class="d"></td></tr>
-        <tr><td>static/app.js</td><td class="d">854</td><td class="d">WebSocket client, conversation state, tool cards, inspector, resize panels</td></tr>
-        <tr><td>static/style.css</td><td class="d">515</td><td class="d">Layout, panels, tool cards, inspector entries</td></tr>
-        <tr><td>static/index.html</td><td class="d">231</td><td class="d">Shell HTML — sidebar, chat pane, inspector, memory drawer</td></tr>
-        <tr><td style="color:var(--bright);font-weight:600">Total</td><td style="color:var(--bright);font-weight:600">~3,487</td><td class="d">Everything. The LLM APIs handle the rest.</td></tr>
+        <tr>
+          <td colspan="4" style="color:var(--dim);font-size:9px;letter-spacing:.6px;text-transform:uppercase;padding-top:10px">Provider wrappers — ~1,075 lines · pure API forwarding</td>
+        </tr>
+        <tr><td>providers/anthropic_provider.py</td><td class="g">~360</td><td class="d">Anthropic Messages API — streaming, tool config, memory/bash result loop</td><td class="y">memory + bash results only</td></tr>
+        <tr><td>providers/openai_provider.py</td><td class="g">~370</td><td class="d">OpenAI Responses API — streaming, shell/skills, image render</td><td class="d" style="color:var(--green)">nothing</td></tr>
+        <tr><td>providers/gemini_provider.py</td><td class="g">~345</td><td class="d">Gemini GenAI SDK — function-calling loop, grounding</td><td class="y">bash results only</td></tr>
+        <tr>
+          <td colspan="4" style="color:var(--dim);font-size:9px;letter-spacing:.6px;text-transform:uppercase;padding-top:10px">Client-side execution — ~812 lines · the parts that actually run locally</td>
+        </tr>
+        <tr><td>workspace_executor.py</td><td class="d">~300</td><td class="d">Bash sandbox (Gemini) — real <code>/bin/bash</code> or Python emulator fallback</td><td class="y">runs bash commands</td></tr>
+        <tr><td>memory_manager.py</td><td class="d">~250</td><td class="d">Handles <code>memory_20250818</code> tool calls — read/write files in <code>memories/</code></td><td class="y">reads + writes disk</td></tr>
+        <tr><td>mcp_client.py</td><td class="d">~200</td><td class="d">Streamable HTTP MCP client — initialize handshake, list tools, call tool</td><td class="d" style="color:var(--green)">nothing (Anthropic/OpenAI call MCP natively)</td></tr>
+        <tr><td>mcp_server.py</td><td class="d">~62</td><td class="d">Local test MCP server (FastMCP, port 3001)</td><td class="d" style="color:var(--dim)">test only</td></tr>
+        <tr>
+          <td colspan="4" style="color:var(--dim);font-size:9px;letter-spacing:.6px;text-transform:uppercase;padding-top:10px">Infrastructure — ~260 lines · routing + persistence</td>
+        </tr>
+        <tr><td>main.py</td><td class="d">~134</td><td class="d">FastAPI app, WebSocket router, <code>/api/info</code> endpoint</td><td class="d" style="color:var(--green)">nothing</td></tr>
+        <tr><td>session_manager.py</td><td class="d">~46</td><td class="d">Saves container IDs + response IDs to <code>sessions/</code></td><td class="d" style="color:var(--green)">nothing</td></tr>
+        <tr><td>skills_manager.py + skills.py</td><td class="d">~80</td><td class="d">Upload SKILL.md zips, cache skill_ids, fetch from GitHub URL</td><td class="d" style="color:var(--green)">nothing</td></tr>
+        <tr>
+          <td colspan="4" style="color:var(--dim);font-size:9px;letter-spacing:.6px;text-transform:uppercase;padding-top:10px">Frontend — ~1,600 lines · UI only</td>
+        </tr>
+        <tr><td>static/app.js</td><td class="d">854</td><td class="d">WebSocket client, conversation state, tool cards, inspector, resize panels</td><td class="d" style="color:var(--green)">nothing</td></tr>
+        <tr><td>static/style.css</td><td class="d">515</td><td class="d">Layout, panels, tool cards, inspector entries</td><td class="d">—</td></tr>
+        <tr><td>static/index.html</td><td class="d">231</td><td class="d">Shell — sidebar, chat, inspector, memory drawer</td><td class="d">—</td></tr>
+        <tr>
+          <td style="color:var(--bright);font-weight:600">Total</td>
+          <td style="color:var(--bright);font-weight:600">~3,487</td>
+          <td class="d">Everything needed to talk to 3 providers with full tool support</td>
+          <td style="color:var(--yellow);font-size:10px">~550 lines that actually execute locally</td>
+        </tr>
       </tbody>
     </table>
   </section>
