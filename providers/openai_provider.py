@@ -158,12 +158,23 @@ class OpenAIProvider:
         ws: WebSocket,
     ):
         system = _build_system(skills)
-        tools = [v for k, v in SERVER_TOOLS.items() if tools_config.get(k)]
+        use_shell = tools_config.get("shell", False)
+
+        # code_interpreter and shell both use OpenAI-managed containers — mutually exclusive.
+        # Shell subsumes code_interpreter (full bash + Python), so drop code_interpreter when shell is on.
+        drop_code_interp = tools_config.get("code_interpreter") and (use_shell or skills)
+        tools = [
+            v for k, v in SERVER_TOOLS.items()
+            if tools_config.get(k) and not (k == "code_interpreter" and (use_shell or skills))
+        ]
+        if drop_code_interp:
+            await ws.send_json({"type": "info",
+                "message": "code_interpreter disabled — shell tool is active (shell includes Python + bash, container_auto). Both cannot share an OpenAI-managed container."
+            })
 
         # Shell tool: hosted container with /mnt/data filesystem.
         # If skills are loaded, mount them inside the shell environment — this is the
         # OpenAI native Skills API (not system-prompt injection).
-        use_shell = tools_config.get("shell", False)
         if use_shell or skills:
             shell_tool = dict(SHELL_TOOL)
             if skills:
