@@ -103,6 +103,7 @@ body{display:flex;flex-direction:column}
   flex-direction:column;
   overflow:hidden;
   position:relative;
+  min-height:0;
 }
 
 .sidebar-top{
@@ -393,6 +394,7 @@ body{display:flex;flex-direction:column}
   width:380px;
   flex-shrink:0;
   display:flex;flex-direction:column;background:var(--surface);overflow:hidden;
+  min-height:0;
 }
 .inspector-header{
   display:flex;justify-content:space-between;align-items:center;
