@@ -17,6 +17,7 @@ const state = {
   streamEl: null,
   streamText: "",
   inspCount: 0,
+  apiKeys: JSON.parse(localStorage.getItem("llm_explorer_api_keys") || "{}"),
 };
 
 // ─── Provider Config ─────────────────────────────────
@@ -139,7 +140,35 @@ function selectProvider(name) {
     </div>`).join("");
 
   document.getElementById("mcp-note").textContent = cfg.mcpNote;
+
+  // API key field
+  const keyLabels = { anthropic: "Anthropic API Key (sk-ant-…)", openai: "OpenAI API Key (sk-…)", gemini: "Gemini API Key (AIza…)" };
+  document.getElementById("api-key-label").textContent = keyLabels[name] || "API Key";
+  const keyInput = document.getElementById("api-key-input");
+  keyInput.value = state.apiKeys[name] || "";
+  updateKeyStatus(name);
+
   updateChatHeader();
+}
+
+function saveApiKey(value) {
+  const k = value.trim();
+  state.apiKeys[state.provider] = k;
+  localStorage.setItem("llm_explorer_api_keys", JSON.stringify(state.apiKeys));
+  updateKeyStatus(state.provider);
+}
+
+function updateKeyStatus(provider) {
+  const keyInput = document.getElementById("api-key-input");
+  const status = document.getElementById("api-key-status");
+  const has = !!(state.apiKeys[provider] || "").trim();
+  keyInput.classList.toggle("has-key", has);
+  status.textContent = has ? "✓ key saved in browser" : "";
+}
+
+function toggleKeyVisibility() {
+  const inp = document.getElementById("api-key-input");
+  inp.type = inp.type === "password" ? "text" : "password";
 }
 
 function toggleTool(id, on) {
@@ -359,6 +388,7 @@ function sendMessage() {
     tools: state.tools,
     mcp_servers: state.mcpServers,
     skills: state.skills,
+    api_key: (state.apiKeys[state.provider] || "").trim() || null,
   }));
 }
 

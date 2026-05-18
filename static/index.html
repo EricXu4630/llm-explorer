@@ -34,6 +34,14 @@
           <button class="ptab" data-provider="gemini">Gemini</button>
         </div>
         <select id="model-select" class="model-select"></select>
+        <div class="api-key-row">
+          <span class="api-key-label" id="api-key-label">API Key</span>
+          <div class="api-key-input-wrap">
+            <input type="password" id="api-key-input" class="api-key-input" placeholder="Paste key…" autocomplete="off" oninput="saveApiKey(this.value)"/>
+            <button class="api-key-toggle" onclick="toggleKeyVisibility()" title="Show/hide key">👁</button>
+          </div>
+          <span class="api-key-status" id="api-key-status"></span>
+        </div>
       </section>
 
       <!-- Tools -->

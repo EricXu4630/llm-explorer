@@ -105,11 +105,16 @@ async def ws_endpoint(ws: WebSocket):
                     await ws.send_json({"type": "error", "message": f"Unknown provider: {provider_name}"})
                     continue
 
-                api_key = os.getenv(API_KEY_VARS[provider_name], "").strip()
+                # Key from UI takes priority; fall back to server env var
+                api_key = (msg.get("api_key") or "").strip() or os.getenv(API_KEY_VARS[provider_name], "").strip()
                 if not api_key:
                     await ws.send_json({
                         "type": "error",
-                        "message": f"No API key for {provider_name}. Set {API_KEY_VARS[provider_name]} in .env",
+                        "message": (
+                            f"No API key for {provider_name}. "
+                            f"Enter your key in the Provider panel on the left, "
+                            f"or set {API_KEY_VARS[provider_name]} in .env on the server."
+                        ),
                     })
                     continue
 
