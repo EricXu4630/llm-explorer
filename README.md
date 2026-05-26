@@ -58,6 +58,48 @@ The three provider wrappers (`providers/*.py`, ~1,075 lines combined) are pure A
 
 ---
 
+## How tool execution works
+
+Tools in the UI are labelled either **API** or **harness**. The distinction matters:
+
+**API tools** — the provider's servers handle everything. The harness just includes the tool in the request and receives the final answer. It never sees the intermediate steps.
+
+```
+user message
+    → harness builds API request (tools: [web_search, ...])
+    → provider searches the web internally
+    → provider returns answer
+```
+
+**Harness tools** — the model decides to call a tool, the provider sends that call *back* to the harness, the harness executes it locally, then sends the result back so the model can continue. The `←` in the UI label shows this return flow.
+
+```
+user message
+    → harness builds API request (tools: [memory, ...])
+    → model generates a tool_call: memory("write /memories/notes.md", "...")
+    → provider returns the tool_call to the harness  ← execution comes back here
+    → harness writes the file to disk
+    → harness sends tool result back to provider
+    → model sees the result and continues
+```
+
+You use both the same way — enable the checkbox, ask naturally. The harness handles the execution loop automatically.
+
+| Tool | Provider | Executes on |
+|---|---|---|
+| Web search | All | Provider servers |
+| Code execution | Anthropic, OpenAI | Provider container |
+| URL fetch | Anthropic, Gemini | Provider servers |
+| Image generation | OpenAI | Provider servers |
+| MCP tool calls | Anthropic, OpenAI | Your MCP server (provider calls it) |
+| Memory (`memory_20250818`) | Anthropic | **Your machine** — `memories/` directory |
+| Bash (`bash_20250124`) | Anthropic | **Your machine** — `workspace/` directory |
+| Bash function | Gemini | **Your machine** — `workspace/` directory |
+
+The local machine is only used for file storage: `memories/` (model memory), `workspace/` (bash sandbox), and `sessions/` (container IDs for cross-session persistence). All compute happens on the provider's infrastructure.
+
+---
+
 ## Getting started
 
 ```bash
