@@ -37,8 +37,8 @@ const PROVIDERS = {
       { id:"web_search",    label:"Web Search",         icon:"🔍", note:"server-side · web_search_20260209",    cls:"native"  },
       { id:"code_execution",label:"Code Execution",     icon:"💻", note:"server-side · bash+Python · 30d container", cls:"native" },
       { id:"web_fetch",     label:"Web Fetch",          icon:"🌐", note:"server-side · web_fetch_20260209",     cls:"native"  },
-      { id:"memory",        label:"Memory /memories/",  icon:"🧠", note:"client-side ← harness · memory_20250818", cls:"harness" },
-      { id:"bash_tool",     label:"Bash Tool",          icon:"🖥️", note:"client-side ← harness · bash_20250124",  cls:"harness" },
+      { id:"memory",        label:"Memory /memories/",  icon:"🧠", note:"harness writes model's notes to memories/ on this machine · memory_20250818", cls:"harness" },
+      { id:"bash_tool",     label:"Bash Tool",          icon:"🖥️", note:"harness runs bash commands in workspace/ on this machine · bash_20250124",  cls:"harness" },
       { id:"advisor",       label:"Advisor",            icon:"🎯", note:"server-side beta · Sonnet consults Opus mid-task", cls:"native" },
     ],
     mcpNote: "✅ Native API MCP (mcp-client-2025-11-20) — Anthropic calls MCP servers server-side. Needs public HTTPS.",
@@ -64,7 +64,7 @@ const PROVIDERS = {
       { id:"shell",            label:"Shell /mnt/data",   icon:"🖥️", note:"server-side hosted bash + filesystem", cls:"native"  },
       { id:"image_generation", label:"Image Generation",  icon:"🎨", note:"server-side · type:image_generation",  cls:"native"  },
       { id:"file_search",      label:"File Search",       icon:"📚", note:"server-side RAG · needs vector_store_ids", cls:"native" },
-      { id:"computer",         label:"Computer Use",      icon:"🖱️", note:"gpt-5.5/5.4 · client harness required", cls:"harness" },
+      { id:"computer",         label:"Computer Use",      icon:"🖱️", note:"harness must capture screenshots + send to model + execute mouse/keyboard — not implemented in this harness", cls:"harness", disabled:true },
     ],
     mcpNote: "✅ Native API MCP (type:mcp) — OpenAI calls MCP servers server-side. Needs public HTTPS.",
     defaultTools: ["web_search"],
@@ -86,7 +86,7 @@ const PROVIDERS = {
       { id:"code_execution", label:"Code Execution",   icon:"💻", note:"server-side Python · 30s · stateless", cls:"native"  },
       { id:"url_context",    label:"URL Context",      icon:"🌐", note:"server-side URL reader",               cls:"native"  },
       { id:"google_maps",    label:"Google Maps",      icon:"🗺️", note:"server-side location + places",        cls:"native"  },
-      { id:"bash",           label:"Bash (workspace/)",icon:"🖥️", note:"client-side ← harness · permanent workspace/", cls:"harness" },
+      { id:"bash",           label:"Bash (workspace/)",icon:"🖥️", note:"harness runs bash commands in workspace/ on this machine · permanent across session", cls:"harness" },
     ],
     mcpNote: "❌ No native MCP — Gemini has no API-level MCP connector. MCP servers are ignored. Use Anthropic/OpenAI for native MCP.",
     defaultTools: ["google_search"],
@@ -128,13 +128,14 @@ function selectProvider(name) {
 
   // Tools
   state.tools = {};
-  cfg.tools.forEach(t => { state.tools[t.id] = cfg.defaultTools.includes(t.id); });
+  cfg.tools.forEach(t => { state.tools[t.id] = !t.disabled && cfg.defaultTools.includes(t.id); });
   document.getElementById("tools-list").innerHTML = cfg.tools.map(t => `
-    <div class="tool-row">
+    <div class="tool-row${t.disabled ? " tool-row-disabled" : ""}">
       <label>
-        <input type="checkbox" ${state.tools[t.id] ? "checked" : ""} onchange="toggleTool('${t.id}',this.checked)"/>
+        <input type="checkbox" ${state.tools[t.id] ? "checked" : ""} ${t.disabled ? "disabled" : ""} onchange="toggleTool('${t.id}',this.checked)"/>
         <span class="tool-icon">${t.icon}</span>
         <span class="tool-name">${t.label}</span>
+        ${t.disabled ? `<span class="tool-unimplemented">not implemented</span>` : ""}
       </label>
       <span class="tool-note ${t.cls}">${t.note}</span>
     </div>`).join("");
