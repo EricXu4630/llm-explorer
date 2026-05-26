@@ -155,7 +155,7 @@ Test with a free public server: `mcp.deepwiki.com/mcp`
 ## Getting started
 
 ```bash
-git clone https://github.com/EricXu4630/llm-explorer
+git clone https://github.com/EricXu4630/thin-harness-agent
 cd llm-explorer
 pip install -r requirements.txt
 uvicorn main:app --host 127.0.0.1 --port 8080 --reload
