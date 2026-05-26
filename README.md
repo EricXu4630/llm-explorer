@@ -1,8 +1,11 @@
 # Thin Harness, Fat Skills
 
-**How much agent power can you get from LLM provider APIs alone — with almost no scaffolding?**
+> *"The secret: thin harness, fat skills — a design pattern that separates intelligence work from execution work."*
+> — Garry Tan, [Thin Harness, Fat Skills](https://github.com/garrytan/gbrain/blob/master/docs/ethos/THIN_HARNESS_FAT_SKILLS.md)
 
-A multi-provider agent harness for Anthropic, OpenAI, and Gemini that delegates everything possible to the provider APIs. Web search, code execution, persistent containers, URL fetching, image generation, MCP connectors, Skills APIs, memory tools — all handled natively by the provider. The harness just wires them together.
+**A live implementation of that architecture across Anthropic, OpenAI, and Gemini.**
+
+The harness delegates everything possible to the provider APIs: web search, code execution, persistent containers, URL fetching, image generation, MCP connectors, Skills APIs, memory tools. The provider handles it. The harness just wires it together.
 
 **~3,500 lines total. ~550 lines that actually execute anything.**
 
@@ -12,9 +15,11 @@ A multi-provider agent harness for Anthropic, OpenAI, and Gemini that delegates 
 
 ## Why this exists
 
-Most agent frameworks re-implement capabilities the provider APIs already have: web search, code execution, filesystem access, tool calling loops, memory. They add thousands of lines of orchestration on top of things that are already built in.
+Garry Tan's article defines the anti-pattern as a bloated harness with rigid tool definitions consuming context window. The right architecture is the inverse: fat skills encode domain knowledge and judgment; the harness stays thin enough to read in one sitting.
 
-This project tests the opposite premise: build the thinnest possible wrapper, delegate everything to the raw APIs, and measure what's left. The answer is surprisingly little.
+Most agent frameworks ignore this. They re-implement web search, code execution, filesystem access, and tool loops at the application layer — on top of capabilities the provider APIs already provide natively.
+
+This repo tests how far the raw APIs take you with almost no scaffolding. The answer: surprisingly far. The only things the harness executes itself are memory writes and bash commands. Everything else — search, code, images, MCP calls, Skills — is delegated to the provider.
 
 ---
 
