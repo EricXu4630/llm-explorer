@@ -192,7 +192,7 @@ body{display:flex;flex-direction:column}
 .tool-note{
   font-size:9px;color:var(--text-dim);letter-spacing:.3px;
   background:var(--panel);padding:1px 4px;border-radius:2px;border:1px solid var(--border);
-  white-space:nowrap;
+  white-space:normal;line-height:1.4;
 }
 .tool-note.native{background:var(--green-bg);color:var(--green);border-color:rgba(52,211,153,.2)}
 .tool-note.harness{background:var(--yellow-bg);color:var(--yellow);border-color:rgba(251,191,36,.2)}
