@@ -1,102 +1,149 @@
 # Thin Harness, Fat Skills
 
-> How much agent orchestration can you get from the LLM provider APIs alone — with almost no scaffolding?
+**How much agent power can you get from LLM provider APIs alone — with almost no scaffolding?**
 
-This repo is an answer to that question. It's a multi-provider agent harness for Anthropic, OpenAI, and Gemini that delegates everything possible to the provider APIs and measures what's left.
+A multi-provider agent harness for Anthropic, OpenAI, and Gemini that delegates everything possible to the provider APIs. Web search, code execution, persistent containers, URL fetching, image generation, MCP connectors, Skills APIs, memory tools — all handled natively by the provider. The harness just wires them together.
 
-**The result:** ~550 lines of code that actually *execute* anything. The rest is just wiring.
+**~3,500 lines total. ~550 lines that actually execute anything.**
 
----
-
-## Motivation
-
-Modern LLM providers — Anthropic, OpenAI, Gemini — have quietly built most of what an "agent framework" provides directly into their APIs: web search, code execution, persistent containers, filesystem access, URL fetching, image generation, MCP connectors, Skills APIs, memory tools, advisor models. Most agent frameworks re-implement these at the application layer, adding thousands of lines of scaffolding on top of capabilities the API already provides natively.
-
-This project tests the limits of that premise. Build the thinnest possible wrapper. See how far the raw APIs take you.
+![screenshot placeholder — add a gif here]
 
 ---
 
-## What the provider handles (you just configure it)
+## Why this exists
+
+Most agent frameworks re-implement capabilities the provider APIs already have: web search, code execution, filesystem access, tool calling loops, memory. They add thousands of lines of orchestration on top of things that are already built in.
+
+This project tests the opposite premise: build the thinnest possible wrapper, delegate everything to the raw APIs, and measure what's left. The answer is surprisingly little.
+
+---
+
+## What the provider handles — you just configure it
+
+These run entirely on the provider's infrastructure. The harness passes a config flag. That's it.
 
 | Capability | Anthropic | OpenAI | Gemini |
 |---|---|---|---|
-| Web search | `web_search_20260209` | `web_search_preview` | Google Search grounding |
-| Code / bash execution | `code_execution_20250825` — bash+Python, 30d container | `code_interpreter` + `shell` — Python + bash, `/mnt/data` | Python stateless |
-| URL fetch | `web_fetch_20260209` | — | `url_context` |
-| Image generation | — | `image_generation` (gpt-image-2) | — |
-| Maps | — | — | `google_maps` |
-| MCP tool calls | Native API, server-side | Native API, server-side | — |
-| Skills (SKILL.md) | Native Skills API, progressive disclosure | `shell.environment.skills` | system prompt injection |
-| Memory tool | `memory_20250818` | — | — |
-| Advisor (Sonnet→Opus) | `advisor_20260301` beta | — | — |
-| Cross-session persistence | `container_id` (30d) + Files API (∞) | `previous_response_id` (30d) + Conversations API (∞) | local disk only |
-| Context window | 1M tokens (Opus/Sonnet) | 1M (gpt-5.5), 128K others | 1M+ all 2.5/3 models |
-
-## What the harness does (~550 lines that actually execute)
-
-| File | Lines | What it executes |
-|---|---|---|
-| `memory_manager.py` | ~250 | Reads/writes `memories/` when model calls `memory_20250818` |
-| `workspace_executor.py` | ~300 | Runs bash commands in `workspace/` for Gemini |
-| everything else | ~2,900 | Routing, config forwarding, UI, session persistence — nothing executed |
-
-The three provider wrappers (`providers/*.py`, ~1,075 lines combined) are pure API forwarding. They build the request, stream the response, and relay events to the frontend. They don't execute tools.
+| **Web search** | `web_search_20260209` | `web_search_preview` | Google Search grounding |
+| **Code / bash** | `code_execution_20250825`<br>bash+Python, 30-day container | `code_interpreter` (Python)<br>`shell` (bash, `/mnt/data`) | Python stateless (30s) |
+| **URL fetch** | `web_fetch_20260209` | — | `url_context` |
+| **Image generation** | — | `image_generation` (gpt-image-2) | — |
+| **Maps / location** | — | — | `google_maps` |
+| **MCP tool calls** | Native API, server-side | Native API, server-side | — |
+| **Skills (SKILL.md)** | Native Skills API<br>progressive disclosure | `shell.environment.skills` | system prompt injection |
+| **Memory tool** | `memory_20250818` | — | — |
+| **Advisor tool** | `advisor_20260301` (beta)<br>Sonnet consults Opus mid-task | — | — |
+| **Cross-session** | `container_id` (30d)<br>Files API (indefinite) | `previous_response_id` (30d)<br>Conversations API (indefinite) | local disk only |
+| **Context window** | 1M tokens (Opus/Sonnet)<br>200K (Haiku) | 1M (gpt-5.5)<br>128K others | 1M+ all 2.5/3 models |
 
 ---
 
-## Features
+## What the harness does
 
-- **Chat UI** with provider toggle (Anthropic / OpenAI / Gemini) and model selector
-- **API Inspector** — every raw request and response, human-readable summary + collapsible raw JSON
-- **Tool cards** — real-time visibility into which tools fired, with inputs shown
-- **MCP connector** — add any public MCP server URL; Anthropic and OpenAI call it natively
-- **Skills** — load any SKILL.md from a GitHub URL; uploaded once, `skill_id` cached
-- **AGENTS.md** — static system prompt loaded on every call; `memories/AGENTS.md` is model-writable
-- **API key input** — enter keys in the UI sidebar, stored in `localStorage`; no `.env` required for users
-- **Resizable panels** — drag handles between sidebar, chat, and inspector
-- **About page** — reference tables for all capabilities, tool routing, file structure, model list
+The only code that *executes* anything:
+
+| File | Lines | What it runs |
+|---|---|---|
+| `memory_manager.py` | ~250 | Writes to `memories/` when model calls `memory_20250818` |
+| `workspace_executor.py` | ~300 | Runs bash commands in `workspace/` for Gemini |
+| **everything else** | ~2,900 | Routing, config forwarding, UI, session state — nothing executed |
+
+The three provider wrappers (`providers/*.py`, ~1,075 lines combined) are pure API forwarding. They build the request, stream the response, and relay events to the UI. They don't execute tools.
+
+The local machine stores three directories:
+- `memories/` — model's written memory (permanent)
+- `workspace/` — bash sandbox for Gemini (permanent)
+- `sessions/` — container IDs for cross-session persistence
+
+All compute — inference, search, code execution, image generation — happens on the provider's infrastructure.
 
 ---
 
 ## How tool execution works
 
-Tools in the UI are labelled either **API** or **harness**. The distinction matters:
+Tools in the UI are labelled **API** or **harness**. The distinction:
 
-**API tools** — the provider's servers handle everything. The harness just includes the tool in the request and receives the final answer. It never sees the intermediate steps.
-
+**API tools** — provider servers handle everything. Harness never sees the intermediate steps:
 ```
 user message
-    → harness builds API request (tools: [web_search, ...])
-    → provider searches the web internally
-    → provider returns answer
+  → harness sends request with tool config
+  → provider executes internally (web search, code run, image gen...)
+  → provider returns final answer
 ```
 
-**Harness tools** — the model decides to call a tool, the provider sends that call *back* to the harness, the harness executes it locally, then sends the result back so the model can continue. The `←` in the UI label shows this return flow.
-
+**Harness tools** — model generates a tool call, provider sends it *back* to the harness, harness executes locally, result goes back to the model. The `← harness` label shows this return flow:
 ```
 user message
-    → harness builds API request (tools: [memory, ...])
-    → model generates a tool_call: memory("write /memories/notes.md", "...")
-    → provider returns the tool_call to the harness  ← execution comes back here
-    → harness writes the file to disk
-    → harness sends tool result back to provider
-    → model sees the result and continues
+  → harness sends request with tool config
+  → model decides to call: memory("write /memories/notes.md", "...")
+  → provider returns the tool_call to the harness   ← execution comes back here
+  → harness writes the file to disk
+  → harness sends result back to provider
+  → model sees result and continues
 ```
 
-You use both the same way — enable the checkbox, ask naturally. The harness handles the execution loop automatically.
+You use both the same way — enable the checkbox, ask naturally. The loop is handled automatically.
 
-| Tool | Provider | Executes on |
+| Tool | Executes on |
+|---|---|
+| Web search | Provider servers |
+| Code execution | Provider container |
+| URL fetch | Provider servers |
+| Image generation | Provider servers |
+| MCP tool calls | Your MCP server (provider calls it) |
+| `memory_20250818` | **Your machine** — `memories/` |
+| `bash_20250124` | **Your machine** — `workspace/` |
+| Gemini bash | **Your machine** — `workspace/` |
+
+---
+
+## AGENTS.md and memory
+
+`AGENTS.md` (repo root) is the static system prompt, loaded on every call. Defines role, tools, behavior. You edit this — the model never writes to it.
+
+`memories/AGENTS.md` is model-writable via `memory_20250818`. It accumulates learned preferences, facts, and context across sessions. The model reads it at session start to restore context.
+
+```
+session 1:  model learns something → writes memories/AGENTS.md
+session 2:  model reads /memories → picks up where it left off
+```
+
+Works with Anthropic only (memory tool is Anthropic-native). OpenAI and Gemini rely on conversation history.
+
+---
+
+## Skills (SKILL.md standard)
+
+Load any skill from a GitHub URL in the sidebar. The harness zips the SKILL.md and uploads it to the provider Skills API once, then caches the `skill_id`. After the first upload, only the `skill_id` is sent — the full content never appears in requests again.
+
+| Step | What happens |
+|---|---|
+| First load | Harness zips SKILL.md, uploads to provider, caches `skill_id` locally |
+| Every call after | Only `skill_id` sent — no content in the request |
+| Progressive disclosure (Anthropic + OpenAI) | L1: name + description only (~100 tokens, always). L2: full SKILL.md, on trigger. L3: bundled resources, on demand. |
+| Gemini | No native Skills API — full SKILL.md injected into system prompt every call |
+
+Browse skills at [skillsmp.com](https://skillsmp.com).
+
+---
+
+## MCP servers
+
+Add any public MCP server URL in the sidebar. Anthropic and OpenAI call your MCP server natively — server-side, no client loop. Gemini has no native MCP connector.
+
+Test with a free public server: `mcp.deepwiki.com/mcp`
+
+---
+
+## Current models
+
+| Provider | Recommended | Others |
 |---|---|---|
-| Web search | All | Provider servers |
-| Code execution | Anthropic, OpenAI | Provider container |
-| URL fetch | Anthropic, Gemini | Provider servers |
-| Image generation | OpenAI | Provider servers |
-| MCP tool calls | Anthropic, OpenAI | Your MCP server (provider calls it) |
-| Memory (`memory_20250818`) | Anthropic | **Your machine** — `memories/` directory |
-| Bash (`bash_20250124`) | Anthropic | **Your machine** — `workspace/` directory |
-| Bash function | Gemini | **Your machine** — `workspace/` directory |
+| Anthropic | `claude-opus-4-7`, `claude-sonnet-4-6` (1M ctx) | `claude-haiku-4-5` (200K), `claude-opus-4-6`, `claude-sonnet-4-5` |
+| OpenAI | `gpt-5.5` (1M ctx), `gpt-5.4`, `gpt-5.4-mini` | `gpt-5.4-nano`, `gpt-5`, `gpt-4.1`, `gpt-4o`, `o3` |
+| Gemini | `gemini-2.5-pro`, `gemini-2.5-flash` (1M ctx) | `gemini-2.5-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3-flash-preview`, `gemini-2.0-flash` |
 
-The local machine is only used for file storage: `memories/` (model memory), `workspace/` (bash sandbox), and `sessions/` (container IDs for cross-session persistence). All compute happens on the provider's infrastructure.
+*Verified against live provider docs 2026-05-17*
 
 ---
 
@@ -109,9 +156,9 @@ pip install -r requirements.txt
 uvicorn main:app --host 127.0.0.1 --port 8080 --reload
 ```
 
-Open `http://127.0.0.1:8080`. Enter your API key in the Provider panel on the left. No `.env` needed — keys are stored in your browser's `localStorage`.
+Open `http://127.0.0.1:8080`. Enter your API key in the Provider panel. Keys are stored in `localStorage` — no server setup needed.
 
-**Optional `.env` for server-side keys:**
+**Optional `.env` for server-side keys** (e.g. for Railway deployment):
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
@@ -124,60 +171,52 @@ GEMINI_API_KEY=AIza...
 
 ```
 providers/
-  anthropic_provider.py   # Anthropic Messages API
-  openai_provider.py      # OpenAI Responses API
-  gemini_provider.py      # Gemini GenAI SDK
-memory_manager.py         # memory_20250818 tool → memories/ on disk
-workspace_executor.py     # bash tool → workspace/ on disk
-mcp_client.py             # Streamable HTTP MCP client
-mcp_server.py             # Local test MCP server (port 3001)
-main.py                   # FastAPI app + WebSocket router
-session_manager.py        # Container ID + response ID persistence
-skills_manager.py         # SKILL.md upload + skill_id cache
+  anthropic_provider.py     # Anthropic Messages API — streaming, tools, memory loop
+  openai_provider.py        # OpenAI Responses API — streaming, shell, skills, images
+  gemini_provider.py        # Gemini GenAI SDK — function-calling loop, grounding
+memory_manager.py           # memory_20250818 → reads/writes memories/ on disk
+workspace_executor.py       # bash tool → runs commands in workspace/ on disk
+mcp_client.py               # Streamable HTTP MCP client (for local test server)
+mcp_server.py               # Local test MCP server (FastMCP, port 3001)
+main.py                     # FastAPI app + WebSocket router
+session_manager.py          # Saves container_id + response_id to sessions/
+skills_manager.py           # SKILL.md upload + skill_id cache
 static/
-  app.js                  # Frontend — WebSocket, UI, inspector
+  app.js                    # WebSocket client, tool cards, inspector, resize
   style.css
   index.html
-  about.html              # Reference page
-memories/                 # Model-writable memory (permanent)
-workspace/                # Bash sandbox files (permanent)
-sessions/                 # Container IDs (local, not committed)
-AGENTS.md                 # Static system prompt — edit this
+  about.html                # Reference tables for all capabilities
+memories/                   # Model-writable memory (permanent, not committed)
+workspace/                  # Bash sandbox (permanent, not committed)
+sessions/                   # Container IDs (local, not committed)
+AGENTS.md                   # Static system prompt — edit this
+Procfile                    # Railway deployment
+railway.toml
 ```
-
----
-
-## AGENTS.md and memory
-
-`AGENTS.md` is the static system prompt loaded on every call. You edit it to define the agent's role and behavior.
-
-`memories/AGENTS.md` is written by the model using the `memory_20250818` tool (Anthropic). It accumulates facts, preferences, and context across sessions. The model reads it at session start.
-
-Cross-session flow:
-```
-model calls memory tool → harness writes memories/AGENTS.md
-next session → model reads /memories → picks up where it left off
-```
-
----
-
-## Skills (SKILL.md standard)
-
-Load any skill from a GitHub URL in the sidebar. The harness zips the SKILL.md and uploads it to the provider's Skills API. After the first upload, only the `skill_id` is sent — the full content is never in the request again.
-
-- **Anthropic + OpenAI**: native Skills API with progressive disclosure (L1: name only, L2: full content on trigger, L3: bundled resources)
-- **Gemini**: no native Skills API — full content injected into system prompt
-
-Browse skills at [skillsmp.com](https://skillsmp.com).
 
 ---
 
 ## Deployment
 
-Configured for Railway (`Procfile` + `railway.toml` included). Set API keys as environment variables in the Railway dashboard.
+Configured for Railway out of the box:
 
 ```
 web: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-Note: Railway has an ephemeral filesystem — `memories/`, `workspace/`, and `sessions/` reset on redeploy. Add a persistent volume or database if you need cross-deploy memory.
+Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` in the Railway dashboard. Users can also enter keys directly in the UI without touching the server config.
+
+> **Note:** Railway has an ephemeral filesystem — `memories/`, `workspace/`, and `sessions/` reset on redeploy. Add a persistent volume or external storage if you need cross-deploy memory.
+
+---
+
+## Harness code breakdown
+
+```
+Provider wrappers   ~1,075 lines   pure API forwarding, nothing executed
+Client-side tools     ~550 lines   memory writes + bash commands (local execution)
+Infrastructure        ~260 lines   routing, session persistence
+Frontend            ~1,600 lines   UI, inspector, tool cards
+
+Total               ~3,487 lines
+```
